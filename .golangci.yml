@@ -1,0 +1,20 @@
+issues:
+  new-from-rev: origin/dev
+linters:
+  disable:
+    - exhaustivestruct # deprecated
+    - scopelint # deprecated
+    - interfacer # deprecated
+    - varcheck # deprecated
+    - deadcode # deprecated
+    - nosnakecase # deprecated
+    - maligned # deprecated
+    - structcheck # deprecated
+    - ifshort # deprecated
+    - godox
+    - testpackage
+    - golint
+    - funlen
+    - maintidx
+    - revive
+  enable-all: true
