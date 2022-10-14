@@ -1,5 +1,5 @@
 issues:
-  new-from-rev: origin/dev
+  new-from-rev: origin/master
 linters:
   disable:
     - exhaustivestruct # deprecated
@@ -11,10 +11,14 @@ linters:
     - maligned # deprecated
     - structcheck # deprecated
     - ifshort # deprecated
-    - godox
-    - testpackage
-    - golint
-    - funlen
-    - maintidx
-    - revive
+    - golint # deprecated
+
+    - funlen # игнорируем большие функции в тестах
+    - godox # игнорируем TODO/BUG/FIXME метки
+    - cyclop # сложность функций
+    - gofumpt # TODO непонятная ошибка
   enable-all: true
+linters-settings:
+  varnamelen:
+   ignore-decls:
+    - wg sync.WaitGroup

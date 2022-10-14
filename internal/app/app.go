@@ -1,54 +1,103 @@
 package app
 
 import (
+	"context"
 	"log"
+	"sync"
 
-	productStorage "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterservicecbr"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterserviceexchangerate"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currencymemorystorage"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/expensememorystorage"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/usermemorystorage"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/clients/tg"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/router"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter/texthandler"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
+	rateupdaterworker "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/worker/rate_updater_worker"
 )
 
 type client interface {
-	ListenUpdates(router router.RouterTextInterface)
-	SendMessage(text string, userID int64) error
+	Run(context.Context)
+}
+
+type worker interface {
+	Run(context.Context)
+}
+
+type IRatesUpdaterService interface {
+	Get(ctx context.Context, base string, codes []string) ([]entity.Rate, error)
 }
 
 type config interface {
 	TelegramToken() string
+	GetBaseCurrencyCode() string
+	GetCurrencyCodes() []string
+	GetFrequencyRateUpdateSec() int
+	GetRatesService() string
 }
 
 var _ client = &tg.Client{}
 
 type App struct {
 	client client
-	router router.RouterTextInterface
+	worker worker
 }
 
 func New(cfg config) (App, error) {
-	tgClient, err := tg.New(cfg)
+	currencyStorage := currencymemorystorage.New()
+	userStorage := usermemorystorage.New()
+	expenseStorage := expensememorystorage.New()
+
+	var ratesUpdaterService IRatesUpdaterService
+
+	if cfg.GetRatesService() == "cbr" {
+		ratesUpdaterService = ratesupdaterservicecbr.New()
+	} else {
+		ratesUpdaterService = ratesupdaterserviceexchangerate.New()
+	}
+
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage,
+		ratesUpdaterService, cfg)
+
+	routerText := textrouter.New()
+
+	routerText.Register(texthandler.NewStart())
+	routerText.Register(texthandler.NewHelp())
+	routerText.Register(texthandler.NewAbout())
+	routerText.Register(texthandler.NewSetDefaultCurrency(expenseUsecase))
+	routerText.Register(texthandler.NewAddExpense(expenseUsecase))
+	routerText.Register(texthandler.NewGetReport(expenseUsecase))
+	routerText.Register(texthandler.NewUnknown())
+
+	rateUpdaterWorker := rateupdaterworker.New(expenseUsecase, cfg)
+
+	tgClient, err := tg.New(cfg, routerText)
 	if err != nil {
 		log.Fatal("tg client init failed:", err)
 	}
 
-	productStorage := productStorage.NewProductStorage()
-	productUsecase := usecase.NewProductUsecase(productStorage)
-
-	routerText := router.NewRouterText(productUsecase)
-
-	routerText.Register(&router.HandlerTextStart{})
-	routerText.Register(&router.HandlerTextUnknown{})
-	routerText.Register(&router.HandlerTextHelp{})
-	routerText.Register(&router.HandlerTextAbout{})
-	routerText.Register(&router.HandlerTextAddProduct{})
-	routerText.Register(&router.HandlerTextGetStats{})
-
 	return App{
 		client: tgClient,
-		router: routerText,
+		worker: rateUpdaterWorker,
 	}, nil
 }
 
-func (a *App) Run() {
-	a.client.ListenUpdates(a.router)
+func (a *App) Run(ctx context.Context) {
+	var wg sync.WaitGroup
+
+	wg.Add(1 + 1)
+
+	go func() {
+		defer wg.Done()
+		a.client.Run(ctx)
+	}()
+
+	go func() {
+		defer wg.Done()
+		a.worker.Run(ctx)
+	}()
+
+	wg.Wait()
 }

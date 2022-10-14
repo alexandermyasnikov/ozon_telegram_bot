@@ -13,7 +13,7 @@ build: bindir
 	go build -o ${BINDIR}/bot ${PACKAGE}
 
 test:
-	go test -v -covermode=count -coverprofile=coverage.out ./...
+	go test -v -covermode=count -coverprofile=coverage.out -short ./...
 	go tool cover -func=coverage.out
 	go tool cover -html=coverage.out -o coverage.html
 
@@ -21,7 +21,10 @@ run:
 	go run ${PACKAGE}
 
 generate: install-mockgen
-	${MOCKGEN} -source=internal/usecase/product.go -destination=internal/mocks/usecase/product_mocks.go
+	${MOCKGEN} -source=internal/usecase/expense.go -destination=internal/usecase/mock_usecase/expense.go
+	${MOCKGEN} -source=internal/textrouter/texthandler/set_default_currency.go -destination=internal/textrouter/texthandler/mock_texthandler/set_default_currency.go
+	${MOCKGEN} -source=internal/textrouter/texthandler/add_expense.go -destination=internal/textrouter/texthandler/mock_texthandler/add_expense.go
+	${MOCKGEN} -source=internal/textrouter/texthandler/get_report.go -destination=internal/textrouter/texthandler/mock_texthandler/get_report.go
 
 lint: install-lint
 	${LINTBIN} run

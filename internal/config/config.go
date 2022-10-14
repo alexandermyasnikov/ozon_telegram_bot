@@ -10,9 +10,19 @@ import (
 const ConfigFile = "./data/config.yaml"
 
 type Config struct {
-	Telegram struct {
-		Token string
-	}
+	Telegram TelegramConfig `yaml:"telegram"`
+	Rates    RatesConfig    `yaml:"rates"`
+}
+
+type TelegramConfig struct {
+	Token string `yaml:"token"`
+}
+
+type RatesConfig struct {
+	service         string   `yaml:"service"`
+	Base            string   `yaml:"base"`
+	Codes           []string `yaml:"codes"`
+	FreqUpdateInSec int      `yaml:"freqUpdateInSec"`
 }
 
 func New(file string) (*Config, error) {
@@ -31,6 +41,21 @@ func New(file string) (*Config, error) {
 	return &cfg, nil
 }
 
-func (c *Config) TelegramToken() string {
+func (c Config) TelegramToken() string {
 	return c.Telegram.Token
+}
+func (c Config) GetBaseCurrencyCode() string {
+	return c.Rates.Base
+}
+
+func (c Config) GetCurrencyCodes() []string {
+	return c.Rates.Codes
+}
+
+func (c Config) GetFrequencyRateUpdateSec() int {
+	return c.Rates.FreqUpdateInSec
+}
+
+func (c Config) GetRatesService() string {
+	return c.Rates.service
 }
