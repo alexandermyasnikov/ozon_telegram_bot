@@ -12,31 +12,31 @@ import (
 	usecase "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 )
 
-// MockIExpenseUsecaseGR is a mock of IExpenseUsecaseGR interface.
-type MockIExpenseUsecaseGR struct {
+// MockExpenseUsecaseGR is a mock of ExpenseUsecaseGR interface.
+type MockExpenseUsecaseGR struct {
 	ctrl     *gomock.Controller
-	recorder *MockIExpenseUsecaseGRMockRecorder
+	recorder *MockExpenseUsecaseGRMockRecorder
 }
 
-// MockIExpenseUsecaseGRMockRecorder is the mock recorder for MockIExpenseUsecaseGR.
-type MockIExpenseUsecaseGRMockRecorder struct {
-	mock *MockIExpenseUsecaseGR
+// MockExpenseUsecaseGRMockRecorder is the mock recorder for MockExpenseUsecaseGR.
+type MockExpenseUsecaseGRMockRecorder struct {
+	mock *MockExpenseUsecaseGR
 }
 
-// NewMockIExpenseUsecaseGR creates a new mock instance.
-func NewMockIExpenseUsecaseGR(ctrl *gomock.Controller) *MockIExpenseUsecaseGR {
-	mock := &MockIExpenseUsecaseGR{ctrl: ctrl}
-	mock.recorder = &MockIExpenseUsecaseGRMockRecorder{mock}
+// NewMockExpenseUsecaseGR creates a new mock instance.
+func NewMockExpenseUsecaseGR(ctrl *gomock.Controller) *MockExpenseUsecaseGR {
+	mock := &MockExpenseUsecaseGR{ctrl: ctrl}
+	mock.recorder = &MockExpenseUsecaseGRMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockIExpenseUsecaseGR) EXPECT() *MockIExpenseUsecaseGRMockRecorder {
+func (m *MockExpenseUsecaseGR) EXPECT() *MockExpenseUsecaseGRMockRecorder {
 	return m.recorder
 }
 
 // GetReport mocks base method.
-func (m *MockIExpenseUsecaseGR) GetReport(ctx context.Context, req usecase.GetReportReqDTO) (usecase.GetReportRespDTO, error) {
+func (m *MockExpenseUsecaseGR) GetReport(ctx context.Context, req usecase.GetReportReqDTO) (usecase.GetReportRespDTO, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetReport", ctx, req)
 	ret0, _ := ret[0].(usecase.GetReportRespDTO)
@@ -45,7 +45,7 @@ func (m *MockIExpenseUsecaseGR) GetReport(ctx context.Context, req usecase.GetRe
 }
 
 // GetReport indicates an expected call of GetReport.
-func (mr *MockIExpenseUsecaseGRMockRecorder) GetReport(ctx, req interface{}) *gomock.Call {
+func (mr *MockExpenseUsecaseGRMockRecorder) GetReport(ctx, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReport", reflect.TypeOf((*MockIExpenseUsecaseGR)(nil).GetReport), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReport", reflect.TypeOf((*MockExpenseUsecaseGR)(nil).GetReport), ctx, req)
 }

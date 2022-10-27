@@ -7,8 +7,10 @@ package mock_usecase
 import (
 	context "context"
 	reflect "reflect"
+	time "time"
 
 	gomock "github.com/golang/mock/gomock"
+	decimal "github.com/shopspring/decimal"
 	entity "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 )
 
@@ -36,47 +38,47 @@ func (m *MockICurrencyStorage) EXPECT() *MockICurrencyStorageMockRecorder {
 }
 
 // Get mocks base method.
-func (m *MockICurrencyStorage) Get(arg0 string) (entity.Rate, error) {
+func (m *MockICurrencyStorage) Get(arg0 context.Context, arg1 string) (entity.Rate, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0)
+	ret := m.ctrl.Call(m, "Get", arg0, arg1)
 	ret0, _ := ret[0].(entity.Rate)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockICurrencyStorageMockRecorder) Get(arg0 interface{}) *gomock.Call {
+func (mr *MockICurrencyStorageMockRecorder) Get(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockICurrencyStorage)(nil).Get), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockICurrencyStorage)(nil).Get), arg0, arg1)
 }
 
 // GetAll mocks base method.
-func (m *MockICurrencyStorage) GetAll() ([]entity.Rate, error) {
+func (m *MockICurrencyStorage) GetAll(arg0 context.Context) ([]entity.Rate, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetAll")
+	ret := m.ctrl.Call(m, "GetAll", arg0)
 	ret0, _ := ret[0].([]entity.Rate)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetAll indicates an expected call of GetAll.
-func (mr *MockICurrencyStorageMockRecorder) GetAll() *gomock.Call {
+func (mr *MockICurrencyStorageMockRecorder) GetAll(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockICurrencyStorage)(nil).GetAll))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAll", reflect.TypeOf((*MockICurrencyStorage)(nil).GetAll), arg0)
 }
 
 // Update mocks base method.
-func (m *MockICurrencyStorage) Update(arg0 entity.Rate) error {
+func (m *MockICurrencyStorage) Update(arg0 context.Context, arg1 entity.Rate) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", arg0)
+	ret := m.ctrl.Call(m, "Update", arg0, arg1)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockICurrencyStorageMockRecorder) Update(arg0 interface{}) *gomock.Call {
+func (mr *MockICurrencyStorageMockRecorder) Update(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockICurrencyStorage)(nil).Update), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockICurrencyStorage)(nil).Update), arg0, arg1)
 }
 
 // MockIUserStorage is a mock of IUserStorage interface.
@@ -103,32 +105,91 @@ func (m *MockIUserStorage) EXPECT() *MockIUserStorageMockRecorder {
 }
 
 // GetDefaultCurrency mocks base method.
-func (m *MockIUserStorage) GetDefaultCurrency(arg0 entity.UserID) (string, error) {
+func (m *MockIUserStorage) GetDefaultCurrency(arg0 context.Context, arg1 entity.UserID) (string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetDefaultCurrency", arg0)
+	ret := m.ctrl.Call(m, "GetDefaultCurrency", arg0, arg1)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetDefaultCurrency indicates an expected call of GetDefaultCurrency.
-func (mr *MockIUserStorageMockRecorder) GetDefaultCurrency(arg0 interface{}) *gomock.Call {
+func (mr *MockIUserStorageMockRecorder) GetDefaultCurrency(arg0, arg1 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultCurrency", reflect.TypeOf((*MockIUserStorage)(nil).GetDefaultCurrency), arg0)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDefaultCurrency", reflect.TypeOf((*MockIUserStorage)(nil).GetDefaultCurrency), arg0, arg1)
+}
+
+// GetLimits mocks base method.
+func (m *MockIUserStorage) GetLimits(arg0 context.Context, arg1 entity.UserID) (decimal.Decimal, decimal.Decimal, decimal.Decimal, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetLimits", arg0, arg1)
+	ret0, _ := ret[0].(decimal.Decimal)
+	ret1, _ := ret[1].(decimal.Decimal)
+	ret2, _ := ret[2].(decimal.Decimal)
+	ret3, _ := ret[3].(error)
+	return ret0, ret1, ret2, ret3
+}
+
+// GetLimits indicates an expected call of GetLimits.
+func (mr *MockIUserStorageMockRecorder) GetLimits(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetLimits", reflect.TypeOf((*MockIUserStorage)(nil).GetLimits), arg0, arg1)
+}
+
+// UpdateDayLimit mocks base method.
+func (m *MockIUserStorage) UpdateDayLimit(arg0 context.Context, arg1 entity.UserID, arg2 decimal.Decimal) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateDayLimit", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateDayLimit indicates an expected call of UpdateDayLimit.
+func (mr *MockIUserStorageMockRecorder) UpdateDayLimit(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDayLimit", reflect.TypeOf((*MockIUserStorage)(nil).UpdateDayLimit), arg0, arg1, arg2)
 }
 
 // UpdateDefaultCurrency mocks base method.
-func (m *MockIUserStorage) UpdateDefaultCurrency(arg0 entity.UserID, arg1 string) error {
+func (m *MockIUserStorage) UpdateDefaultCurrency(arg0 context.Context, arg1 entity.UserID, arg2 string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateDefaultCurrency", arg0, arg1)
+	ret := m.ctrl.Call(m, "UpdateDefaultCurrency", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // UpdateDefaultCurrency indicates an expected call of UpdateDefaultCurrency.
-func (mr *MockIUserStorageMockRecorder) UpdateDefaultCurrency(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockIUserStorageMockRecorder) UpdateDefaultCurrency(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDefaultCurrency", reflect.TypeOf((*MockIUserStorage)(nil).UpdateDefaultCurrency), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateDefaultCurrency", reflect.TypeOf((*MockIUserStorage)(nil).UpdateDefaultCurrency), arg0, arg1, arg2)
+}
+
+// UpdateMonthLimit mocks base method.
+func (m *MockIUserStorage) UpdateMonthLimit(arg0 context.Context, arg1 entity.UserID, arg2 decimal.Decimal) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateMonthLimit", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateMonthLimit indicates an expected call of UpdateMonthLimit.
+func (mr *MockIUserStorageMockRecorder) UpdateMonthLimit(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateMonthLimit", reflect.TypeOf((*MockIUserStorage)(nil).UpdateMonthLimit), arg0, arg1, arg2)
+}
+
+// UpdateWeekLimit mocks base method.
+func (m *MockIUserStorage) UpdateWeekLimit(arg0 context.Context, arg1 entity.UserID, arg2 decimal.Decimal) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateWeekLimit", arg0, arg1, arg2)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateWeekLimit indicates an expected call of UpdateWeekLimit.
+func (mr *MockIUserStorageMockRecorder) UpdateWeekLimit(arg0, arg1, arg2 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateWeekLimit", reflect.TypeOf((*MockIUserStorage)(nil).UpdateWeekLimit), arg0, arg1, arg2)
 }
 
 // MockIExpenseStorage is a mock of IExpenseStorage interface.
@@ -155,32 +216,32 @@ func (m *MockIExpenseStorage) EXPECT() *MockIExpenseStorageMockRecorder {
 }
 
 // Create mocks base method.
-func (m *MockIExpenseStorage) Create(arg0 entity.UserID, arg1 entity.Expense) error {
+func (m *MockIExpenseStorage) Create(arg0 context.Context, arg1 entity.UserID, arg2 entity.Expense) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Create", arg0, arg1)
+	ret := m.ctrl.Call(m, "Create", arg0, arg1, arg2)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // Create indicates an expected call of Create.
-func (mr *MockIExpenseStorageMockRecorder) Create(arg0, arg1 interface{}) *gomock.Call {
+func (mr *MockIExpenseStorageMockRecorder) Create(arg0, arg1, arg2 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIExpenseStorage)(nil).Create), arg0, arg1)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Create", reflect.TypeOf((*MockIExpenseStorage)(nil).Create), arg0, arg1, arg2)
 }
 
 // Get mocks base method.
-func (m *MockIExpenseStorage) Get(arg0 entity.UserID, arg1 entity.Date, arg2 int) ([]entity.Expense, error) {
+func (m *MockIExpenseStorage) Get(arg0 context.Context, arg1 entity.UserID, arg2, arg3 time.Time) ([]entity.Expense, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2)
+	ret := m.ctrl.Call(m, "Get", arg0, arg1, arg2, arg3)
 	ret0, _ := ret[0].([]entity.Expense)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Get indicates an expected call of Get.
-func (mr *MockIExpenseStorageMockRecorder) Get(arg0, arg1, arg2 interface{}) *gomock.Call {
+func (mr *MockIExpenseStorageMockRecorder) Get(arg0, arg1, arg2, arg3 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockIExpenseStorage)(nil).Get), arg0, arg1, arg2)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockIExpenseStorage)(nil).Get), arg0, arg1, arg2, arg3)
 }
 
 // MockIRatesUpdaterService is a mock of IRatesUpdaterService interface.

@@ -12,6 +12,7 @@ const ConfigFile = "./data/config.yaml"
 type Config struct {
 	Telegram TelegramConfig `yaml:"telegram"`
 	Rates    RatesConfig    `yaml:"rates"`
+	Database DatabaseConfig `yaml:"database"`
 }
 
 type TelegramConfig struct {
@@ -19,10 +20,14 @@ type TelegramConfig struct {
 }
 
 type RatesConfig struct {
-	service         string   `yaml:"service"`
+	Service         string   `yaml:"service"`
 	Base            string   `yaml:"base"`
 	Codes           []string `yaml:"codes"`
 	FreqUpdateInSec int      `yaml:"freqUpdateInSec"`
+}
+
+type DatabaseConfig struct {
+	URL string `yaml:"url"`
 }
 
 func New(file string) (*Config, error) {
@@ -57,5 +62,9 @@ func (c Config) GetFrequencyRateUpdateSec() int {
 }
 
 func (c Config) GetRatesService() string {
-	return c.Rates.service
+	return c.Rates.Service
+}
+
+func (c Config) GetDatabaseURL() string {
+	return c.Database.URL
 }

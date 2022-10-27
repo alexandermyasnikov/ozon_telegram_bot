@@ -10,18 +10,18 @@ import (
 	"github.com/pkg/errors"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/util"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
-type IExpenseUsecaseGR interface {
+type ExpenseUsecaseGR interface {
 	GetReport(ctx context.Context, req usecase.GetReportReqDTO) (usecase.GetReportRespDTO, error)
 }
 
 type GetReport struct {
-	expenseUsecase IExpenseUsecaseGR
+	expenseUsecase ExpenseUsecaseGR
 }
 
-func NewGetReport(expenseUsecase IExpenseUsecaseGR) *GetReport {
+func NewGetReport(expenseUsecase ExpenseUsecaseGR) *GetReport {
 	return &GetReport{
 		expenseUsecase: expenseUsecase,
 	}
@@ -29,41 +29,30 @@ func NewGetReport(expenseUsecase IExpenseUsecaseGR) *GetReport {
 
 func (h *GetReport) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	intervalIndex := 1
-	currencyIndex := 2
-	argsCount := 3
+	argsCountMin := 2
+	argsCountMax := 2
 
 	fields := strings.Fields(text)
-	if len(fields) == 0 || len(fields) > argsCount || fields[0] != "отчет" {
+	if len(fields) < argsCountMin || len(fields) > argsCountMax || fields[0] != "отчет" {
 		return false
 	}
 
-	days := util.MonthToDays
+	var intervalType int
 
 	if len(fields) > intervalIndex {
-		switch fields[intervalIndex] {
-		case "день":
-			days = util.DayToDays
-		case "неделя":
-			days = util.WeekToDays
-		case "месяц":
-			days = util.MonthToDays
-		case "год":
-			days = util.YearToDays
-		default:
+		interval, ok := utils.IntervalFromStr(fields[intervalIndex])
+
+		if !ok {
 			return false
 		}
-	}
 
-	currency := ""
-	if len(fields) > currencyIndex {
-		currency = fields[currencyIndex]
+		intervalType = interval
 	}
 
 	cmd.GetReportReqDTO = &usecase.GetReportReqDTO{
-		UserID:   userID,
-		Date:     date,
-		Days:     days,
-		Currency: currency,
+		UserID:       userID,
+		Date:         date,
+		IntervalType: intervalType,
 	}
 
 	return true
@@ -89,12 +78,15 @@ func (h *GetReport) ConvertCommandToText(cmd *textrouter.Command) (string, error
 		return "", errors.Wrap(textrouter.ErrInvalidCommand, "GetReport.ExecuteCommand")
 	}
 
-	// TODO "дней" не склоняется
-	textOut := fmt.Sprintf("Расходы по категориям за %d дней:\n", cmd.GetReportReqDTO.Days)
+	precision := 2
 
-	lines := make([]string, 0, len(cmd.GetReportRespDTO.Categories))
-	for k, v := range cmd.GetReportRespDTO.Categories {
-		lines = append(lines, fmt.Sprintf("%s - %.2f", k, v.ToFloat()))
+	intervalType, _ := utils.IntervalToStr(cmd.GetReportReqDTO.IntervalType)
+
+	textOut := fmt.Sprintf("Расходы по категориям за %s:\n", intervalType)
+
+	lines := make([]string, 0, len(cmd.GetReportRespDTO.Expenses))
+	for _, expense := range cmd.GetReportRespDTO.Expenses {
+		lines = append(lines, fmt.Sprintf("%s - %s", expense.Category, expense.Sum.StringFixed(int32(precision))))
 	}
 
 	sort.Strings(lines)

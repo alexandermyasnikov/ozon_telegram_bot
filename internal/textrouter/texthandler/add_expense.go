@@ -3,24 +3,25 @@ package texthandler
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
-type IExpenseUsecaseAE interface {
-	AddExpense(ctx context.Context, req usecase.AddExpenseReqDTO) error
+type ExpenseUsecaseAE interface {
+	AddExpense(ctx context.Context, req usecase.AddExpenseReqDTO) (usecase.AddExpenseRespDTO, error)
 }
 
 type AddExpense struct {
-	expenseUsecase IExpenseUsecaseAE
+	expenseUsecase ExpenseUsecaseAE
 }
 
-func NewAddExpense(expenseUsecase IExpenseUsecaseAE) *AddExpense {
+func NewAddExpense(expenseUsecase ExpenseUsecaseAE) *AddExpense {
 	return &AddExpense{
 		expenseUsecase: expenseUsecase,
 	}
@@ -29,26 +30,19 @@ func NewAddExpense(expenseUsecase IExpenseUsecaseAE) *AddExpense {
 func (h *AddExpense) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	categoryIndex := 1
 	priceIndex := 2
-	currencyIndex := 3
-	argsCount := 4
+	argsCountMin := 3
+	argsCountMax := 3
 
 	fields := strings.Fields(text)
-	if len(fields) < 3 || len(fields) > argsCount || fields[0] != "расход" {
+	if len(fields) < argsCountMin || len(fields) > argsCountMax || fields[0] != "расход" {
 		return false
 	}
 
 	category := fields[categoryIndex]
 
-	const bitSize = 64
-
-	price, err := strconv.ParseFloat(fields[priceIndex], bitSize)
+	price, err := decimal.NewFromString(fields[priceIndex])
 	if err != nil {
 		return false
-	}
-
-	currency := ""
-	if len(fields) > currencyIndex {
-		currency = fields[currencyIndex]
 	}
 
 	cmd.AddExpenseReqDTO = &usecase.AddExpenseReqDTO{
@@ -56,7 +50,6 @@ func (h *AddExpense) ConvertTextToCommand(userID int64, text string, date time.T
 		Category: category,
 		Price:    price,
 		Date:     date,
-		Currency: currency,
 	}
 
 	return true
@@ -67,23 +60,42 @@ func (h *AddExpense) ExecuteCommand(ctx context.Context, cmd *textrouter.Command
 		return errors.Wrap(textrouter.ErrInvalidCommand, "AddExpense.ExecuteCommand")
 	}
 
-	// TODO добавить currency в ответ
-	err := h.expenseUsecase.AddExpense(ctx, *cmd.AddExpenseReqDTO)
+	resp, err := h.expenseUsecase.AddExpense(ctx, *cmd.AddExpenseReqDTO)
 	if err != nil {
 		return errors.Wrap(err, "AddExpense.ExecuteCommand")
 	}
+
+	cmd.AddExpenseRespDTO = &resp
 
 	return nil
 }
 
 func (h *AddExpense) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
-	if cmd.AddExpenseReqDTO == nil {
+	if cmd.AddExpenseReqDTO == nil || cmd.AddExpenseRespDTO == nil {
 		return "", errors.Wrap(textrouter.ErrInvalidCommand, "AddExpense.ExecuteCommand")
 	}
 
-	textOut := fmt.Sprintf("Добавил %s - %0.2f %s %s", cmd.AddExpenseReqDTO.Category,
-		cmd.AddExpenseReqDTO.Price, cmd.AddExpenseReqDTO.Currency,
+	precision := 2
+
+	textOut := fmt.Sprintf("Добавил %s - %s %s %s", cmd.AddExpenseReqDTO.Category,
+		cmd.AddExpenseReqDTO.Price.StringFixed(int32(precision)), cmd.AddExpenseRespDTO.Currency,
 		cmd.AddExpenseReqDTO.Date.Format(time.RFC1123))
+
+	for _, interval := range []int{utils.DayInterval, utils.WeekInterval, utils.MonthInterval} {
+		limit, ok := cmd.AddExpenseRespDTO.Limits[interval]
+		if !ok {
+			continue
+		}
+
+		if limit.GreaterThanOrEqual(decimal.Zero) {
+			continue
+		}
+
+		intervalStr, _ := utils.IntervalToStr(interval)
+
+		textOut += fmt.Sprintf("\nВнимание! Превышен лимит: %s - %s",
+			intervalStr, limit.Neg().StringFixed(int32(precision)))
+	}
 
 	return textOut, nil
 }

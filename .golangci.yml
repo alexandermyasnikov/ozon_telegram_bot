@@ -1,5 +1,5 @@
 issues:
-  new-from-rev: origin/master
+#  new-from-rev: origin/master
 linters:
   disable:
     - exhaustivestruct # deprecated
@@ -17,8 +17,12 @@ linters:
     - godox # игнорируем TODO/BUG/FIXME метки
     - cyclop # сложность функций
     - gofumpt # TODO непонятная ошибка
+    - ireturn # возврат интерфейсов
   enable-all: true
 linters-settings:
+  exhaustruct:
+    exclude:
+      - 'Command'
   varnamelen:
    ignore-decls:
     - wg sync.WaitGroup

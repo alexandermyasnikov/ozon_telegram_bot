@@ -3,7 +3,7 @@ package usecase
 import (
 	"time"
 
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
+	"github.com/shopspring/decimal"
 )
 
 type GetAllCurrencyNamesRespDTO struct {
@@ -18,24 +18,53 @@ type SetDefaultCurrencyReqDTO struct {
 type AddExpenseReqDTO struct {
 	UserID   int64
 	Category string
-	Price    float64
+	Price    decimal.Decimal
 	Date     time.Time
+}
+
+type AddExpenseRespDTO struct {
+	Limits   map[int]decimal.Decimal
 	Currency string
 }
 
 type GetReportReqDTO struct {
-	UserID   int64
-	Date     time.Time
-	Days     int
-	Currency string
+	UserID       int64
+	Date         time.Time
+	IntervalType int
 }
 
 type GetReportRespDTO struct {
-	Currency   string
-	Categories map[string]entity.Decimal // TODO заменить на slice, порядок может меняться в тестах
+	Currency string
+	Expenses []ExpenseReportDTO
 }
 
 type UpdateCurrencyReqDTO struct {
 	Currency string
-	Rate     float64
+	Rate     decimal.Decimal
+}
+
+type SetLimitReqDTO struct {
+	UserID       int64
+	Limit        decimal.Decimal
+	IntervalType int
+}
+
+type SetLimitRespDTO struct {
+	Currency string
+}
+
+type GetLimitsReqDTO struct {
+	UserID int64
+}
+
+type GetLimitsRespDTO struct {
+	Limits   map[int]decimal.Decimal
+	Currency string
+}
+
+// ----
+
+type ExpenseReportDTO struct {
+	Category string
+	Sum      decimal.Decimal
 }

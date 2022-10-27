@@ -7,12 +7,13 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/pkg/errors"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter/texthandler"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter/texthandler/mock_texthandler"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
 func TestGetReportConvertTextToCommand(t *testing.T) {
@@ -33,147 +34,71 @@ func TestGetReportConvertTextToCommand(t *testing.T) {
 		{
 			description: "empty input",
 			textInput:   "",
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO:          nil,
-				GetReportRespDTO:         nil,
-			},
+			cmdExpected: textrouter.Command{},
 		},
 		{
 			description: "command only",
 			textInput:   "отчет",
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
-				},
-				GetReportRespDTO: nil,
-			},
+			cmdExpected: textrouter.Command{},
 		},
 		{
 			description: "day",
 			textInput:   "отчет день",
 			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     1,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.DayInterval,
 				},
-				GetReportRespDTO: nil,
 			},
 		},
 		{
 			description: "week",
 			textInput:   "отчет неделя",
 			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     7,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.WeekInterval,
 				},
-				GetReportRespDTO: nil,
 			},
 		},
 		{
 			description: "month",
 			textInput:   "отчет месяц",
 			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
-				GetReportRespDTO: nil,
-			},
-		},
-		{
-			description: "year",
-			textInput:   "отчет год",
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     365,
-					Currency: "",
-				},
-				GetReportRespDTO: nil,
 			},
 		},
 		{
 			description: "month with spaces",
 			textInput:   "  отчет             месяц       ",
 			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
-				GetReportRespDTO: nil,
-			},
-		},
-		{
-			description: "year + currency",
-			textInput:   "отчет год RUB",
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     365,
-					Currency: "RUB",
-				},
-				GetReportRespDTO: nil,
 			},
 		},
 		{
 			description: "invalid request",
 			textInput:   "отчет нед",
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO:          nil,
-				GetReportRespDTO:         nil,
-			},
+			cmdExpected: textrouter.Command{},
 		},
 		{
 			description: "invalid request",
 			textInput:   "статистика",
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO:          nil,
-				GetReportRespDTO:         nil,
-			},
+			cmdExpected: textrouter.Command{},
 		},
 		{
 			description: "invalid request",
 			textInput:   "отчет нед RUB RUB",
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO:          nil,
-				GetReportRespDTO:         nil,
-			},
+			cmdExpected: textrouter.Command{},
 		},
 	}
 
@@ -209,122 +134,105 @@ func TestGetReportConvertExecuteCommand(t *testing.T) {
 		errExpected string
 	}
 
-	// TODO выглядит сложно
 	testCases := [...]testCase{
 		{
 			description: "empty req",
-			cmd: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO:          nil,
-				GetReportRespDTO:         nil,
-			},
+			cmd:         textrouter.Command{},
 
 			mockGetReportReqDTO: usecase.GetReportReqDTO{
-				UserID:   userID,
-				Date:     date,
-				Days:     31,
-				Currency: "",
+				UserID:       userID,
+				Date:         date,
+				IntervalType: utils.DayInterval,
 			},
 			mockGetReportRespDTO: usecase.GetReportRespDTO{
-				Currency:   "",
-				Categories: nil,
+				Currency: "",
+				Expenses: nil,
 			},
 			mockErr:   nil,
 			mockTimes: 0,
 
-			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO:          nil,
-				GetReportRespDTO:         nil,
-			},
+			cmdExpected: textrouter.Command{},
 			errExpected: "GetReport.ExecuteCommand: internal error",
 		},
 		{
 			description: "with error",
 			cmd: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
-				GetReportRespDTO: nil,
 			},
 
 			mockGetReportReqDTO: usecase.GetReportReqDTO{
-				UserID:   userID,
-				Date:     date,
-				Days:     31,
-				Currency: "",
+				UserID:       userID,
+				Date:         date,
+				IntervalType: utils.MonthInterval,
 			},
 			mockGetReportRespDTO: usecase.GetReportRespDTO{
-				Currency:   "",
-				Categories: nil,
+				Currency: "",
+				Expenses: nil,
 			},
 			mockErr:   errors.New("unknown error"),
 			mockTimes: 1,
 
 			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
-				GetReportRespDTO: nil,
 			},
 			errExpected: "GetReport.ExecuteCommand: unknown error",
 		},
 		{
 			description: "without error",
 			cmd: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
-				GetReportRespDTO: nil,
 			},
 
 			mockGetReportReqDTO: usecase.GetReportReqDTO{
-				UserID:   userID,
-				Date:     date,
-				Days:     31,
-				Currency: "",
+				UserID:       userID,
+				Date:         date,
+				IntervalType: utils.MonthInterval,
 			},
 			mockGetReportRespDTO: usecase.GetReportRespDTO{
 				Currency: "RUB",
-				Categories: map[string]entity.Decimal{
-					"Catergory1": entity.NewDecimal(12, 0),
-					"Catergory2": entity.NewDecimal(34567, 3),
+				Expenses: []usecase.ExpenseReportDTO{
+					{
+						Category: "Catergory1",
+						Sum:      decimal.New(12, 0),
+					},
+					{
+						Category: "Catergory2",
+						Sum:      decimal.New(34567, -3),
+					},
 				},
 			},
 			mockErr:   nil,
 			mockTimes: 1,
 
 			cmdExpected: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
 				GetReportRespDTO: &usecase.GetReportRespDTO{
 					Currency: "RUB",
-					Categories: map[string]entity.Decimal{
-						"Catergory1": entity.NewDecimal(12, 0),
-						"Catergory2": entity.NewDecimal(34567, 3),
+					Expenses: []usecase.ExpenseReportDTO{
+						{
+							Category: "Catergory1",
+							Sum:      decimal.New(12, 0),
+						},
+						{
+							Category: "Catergory2",
+							Sum:      decimal.New(34567, -3),
+						},
 					},
 				},
 			},
@@ -338,7 +246,7 @@ func TestGetReportConvertExecuteCommand(t *testing.T) {
 			t.Parallel()
 
 			ctrl := gomock.NewController(t)
-			expenseUsecase := mock_texthandler.NewMockIExpenseUsecaseGR(ctrl)
+			expenseUsecase := mock_texthandler.NewMockExpenseUsecaseGR(ctrl)
 
 			handler := texthandler.NewGetReport(expenseUsecase)
 
@@ -375,14 +283,17 @@ func TestGetReportConvertCommandToText(t *testing.T) {
 		{
 			description: "empty req",
 			cmd: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
-				GetReportReqDTO:          nil,
 				GetReportRespDTO: &usecase.GetReportRespDTO{
 					Currency: "RUB",
-					Categories: map[string]entity.Decimal{
-						"Catergory1": entity.NewDecimal(12, 0),
-						"Catergory2": entity.NewDecimal(34567, 0),
+					Expenses: []usecase.ExpenseReportDTO{
+						{
+							Category: "Catergory1",
+							Sum:      decimal.New(12, 0),
+						},
+						{
+							Category: "Catergory2",
+							Sum:      decimal.New(34567, -3),
+						},
 					},
 				},
 			},
@@ -392,15 +303,11 @@ func TestGetReportConvertCommandToText(t *testing.T) {
 		{
 			description: "empty resp",
 			cmd: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
-				GetReportRespDTO: nil,
 			},
 			textExpected: "",
 			errExpected:  "GetReport.ExecuteCommand: internal error",
@@ -408,23 +315,26 @@ func TestGetReportConvertCommandToText(t *testing.T) {
 		{
 			description: "categories",
 			cmd: textrouter.Command{
-				SetDefaultCurrencyReqDTO: nil,
-				AddExpenseReqDTO:         nil,
 				GetReportReqDTO: &usecase.GetReportReqDTO{
-					UserID:   userID,
-					Date:     date,
-					Days:     31,
-					Currency: "",
+					UserID:       userID,
+					Date:         date,
+					IntervalType: utils.MonthInterval,
 				},
 				GetReportRespDTO: &usecase.GetReportRespDTO{
 					Currency: "RUB",
-					Categories: map[string]entity.Decimal{
-						"Catergory1": entity.NewDecimal(12, 0),
-						"Catergory2": entity.NewDecimal(34567, 3),
+					Expenses: []usecase.ExpenseReportDTO{
+						{
+							Category: "Catergory1",
+							Sum:      decimal.New(12, 0),
+						},
+						{
+							Category: "Catergory2",
+							Sum:      decimal.New(34567, -3),
+						},
 					},
 				},
 			},
-			textExpected: "Расходы по категориям за 31 дней:\n" +
+			textExpected: "Расходы по категориям за месяц:\n" +
 				"Catergory1 - 12.00\n" +
 				"Catergory2 - 34.57",
 			errExpected: "",

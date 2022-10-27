@@ -5,11 +5,12 @@ import (
 	"log"
 	"sync"
 
+	"github.com/jackc/pgx/v5"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterservicecbr"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterserviceexchangerate"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currencymemorystorage"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/expensememorystorage"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/usermemorystorage"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currencypgsqlstorage"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/expensepgsqlstorage"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/userpgsqlstorage"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
@@ -36,6 +37,7 @@ type config interface {
 	GetCurrencyCodes() []string
 	GetFrequencyRateUpdateSec() int
 	GetRatesService() string
+	GetDatabaseURL() string
 }
 
 var _ client = &tg.Client{}
@@ -43,12 +45,20 @@ var _ client = &tg.Client{}
 type App struct {
 	client client
 	worker worker
+	conn   *pgx.Conn
 }
 
 func New(cfg config) (App, error) {
-	currencyStorage := currencymemorystorage.New()
-	userStorage := usermemorystorage.New()
-	expenseStorage := expensememorystorage.New()
+	ctx := context.Background()
+
+	conn, err := pgx.Connect(ctx, cfg.GetDatabaseURL())
+	if err != nil {
+		log.Fatal("pg client init failed:", err)
+	}
+
+	currencyStorage := currencypgsqlstorage.New(conn)
+	userStorage := userpgsqlstorage.New(conn)
+	expenseStorage := expensepgsqlstorage.New(conn)
 
 	var ratesUpdaterService IRatesUpdaterService
 
@@ -69,6 +79,8 @@ func New(cfg config) (App, error) {
 	routerText.Register(texthandler.NewSetDefaultCurrency(expenseUsecase))
 	routerText.Register(texthandler.NewAddExpense(expenseUsecase))
 	routerText.Register(texthandler.NewGetReport(expenseUsecase))
+	routerText.Register(texthandler.NewSetLimit(expenseUsecase))
+	routerText.Register(texthandler.NewGetLimits(expenseUsecase))
 	routerText.Register(texthandler.NewUnknown())
 
 	rateUpdaterWorker := rateupdaterworker.New(expenseUsecase, cfg)
@@ -81,6 +93,7 @@ func New(cfg config) (App, error) {
 	return App{
 		client: tgClient,
 		worker: rateUpdaterWorker,
+		conn:   conn,
 	}, nil
 }
 
@@ -100,4 +113,6 @@ func (a *App) Run(ctx context.Context) {
 	}()
 
 	wg.Wait()
+
+	a.conn.Close(ctx)
 }

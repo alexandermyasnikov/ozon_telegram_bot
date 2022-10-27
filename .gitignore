@@ -3,3 +3,4 @@
 /.idea
 /data
 .DS_Store
+/coverage*

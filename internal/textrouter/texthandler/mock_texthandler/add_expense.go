@@ -12,39 +12,40 @@ import (
 	usecase "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 )
 
-// MockIExpenseUsecaseAE is a mock of IExpenseUsecaseAE interface.
-type MockIExpenseUsecaseAE struct {
+// MockExpenseUsecaseAE is a mock of ExpenseUsecaseAE interface.
+type MockExpenseUsecaseAE struct {
 	ctrl     *gomock.Controller
-	recorder *MockIExpenseUsecaseAEMockRecorder
+	recorder *MockExpenseUsecaseAEMockRecorder
 }
 
-// MockIExpenseUsecaseAEMockRecorder is the mock recorder for MockIExpenseUsecaseAE.
-type MockIExpenseUsecaseAEMockRecorder struct {
-	mock *MockIExpenseUsecaseAE
+// MockExpenseUsecaseAEMockRecorder is the mock recorder for MockExpenseUsecaseAE.
+type MockExpenseUsecaseAEMockRecorder struct {
+	mock *MockExpenseUsecaseAE
 }
 
-// NewMockIExpenseUsecaseAE creates a new mock instance.
-func NewMockIExpenseUsecaseAE(ctrl *gomock.Controller) *MockIExpenseUsecaseAE {
-	mock := &MockIExpenseUsecaseAE{ctrl: ctrl}
-	mock.recorder = &MockIExpenseUsecaseAEMockRecorder{mock}
+// NewMockExpenseUsecaseAE creates a new mock instance.
+func NewMockExpenseUsecaseAE(ctrl *gomock.Controller) *MockExpenseUsecaseAE {
+	mock := &MockExpenseUsecaseAE{ctrl: ctrl}
+	mock.recorder = &MockExpenseUsecaseAEMockRecorder{mock}
 	return mock
 }
 
 // EXPECT returns an object that allows the caller to indicate expected use.
-func (m *MockIExpenseUsecaseAE) EXPECT() *MockIExpenseUsecaseAEMockRecorder {
+func (m *MockExpenseUsecaseAE) EXPECT() *MockExpenseUsecaseAEMockRecorder {
 	return m.recorder
 }
 
 // AddExpense mocks base method.
-func (m *MockIExpenseUsecaseAE) AddExpense(ctx context.Context, req usecase.AddExpenseReqDTO) error {
+func (m *MockExpenseUsecaseAE) AddExpense(ctx context.Context, req usecase.AddExpenseReqDTO) (usecase.AddExpenseRespDTO, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "AddExpense", ctx, req)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].(usecase.AddExpenseRespDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // AddExpense indicates an expected call of AddExpense.
-func (mr *MockIExpenseUsecaseAEMockRecorder) AddExpense(ctx, req interface{}) *gomock.Call {
+func (mr *MockExpenseUsecaseAEMockRecorder) AddExpense(ctx, req interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddExpense", reflect.TypeOf((*MockIExpenseUsecaseAE)(nil).AddExpense), ctx, req)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddExpense", reflect.TypeOf((*MockExpenseUsecaseAE)(nil).AddExpense), ctx, req)
 }

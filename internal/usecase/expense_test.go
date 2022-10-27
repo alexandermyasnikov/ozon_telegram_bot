@@ -7,13 +7,19 @@ import (
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase/mock_usecase"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
 var errUnknown = errors.New("unknown error")
+
+var timeHelper = func(year, month, day int) time.Time { //nolint:gochecknoglobals
+	return time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+}
 
 func TestExpenseSetDefaultCurrency_CurrencyEqBaseCode(t *testing.T) {
 	t.Parallel()
@@ -30,7 +36,7 @@ func TestExpenseSetDefaultCurrency_CurrencyEqBaseCode(t *testing.T) {
 
 	gomock.InOrder(
 		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
-		userStorage.EXPECT().UpdateDefaultCurrency(entity.NewUserID(201), "RUB").Return(nil),
+		userStorage.EXPECT().UpdateDefaultCurrency(gomock.Any(), entity.UserID(201), "RUB").Return(nil),
 	)
 
 	req := usecase.SetDefaultCurrencyReqDTO{
@@ -58,7 +64,7 @@ func TestExpenseSetDefaultCurrency_CurrencyInCodes(t *testing.T) {
 	gomock.InOrder(
 		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
 		config.EXPECT().GetCurrencyCodes().Return([]string{"CNY", "EUR", "USD", "JPY"}),
-		userStorage.EXPECT().UpdateDefaultCurrency(entity.NewUserID(201), "USD").Return(nil),
+		userStorage.EXPECT().UpdateDefaultCurrency(gomock.Any(), entity.UserID(201), "USD").Return(nil),
 	)
 
 	req := usecase.SetDefaultCurrencyReqDTO{
@@ -113,7 +119,7 @@ func TestExpenseSetDefaultCurrency_DBError(t *testing.T) {
 
 	gomock.InOrder(
 		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
-		userStorage.EXPECT().UpdateDefaultCurrency(entity.NewUserID(201), "RUB").Return(errUnknown),
+		userStorage.EXPECT().UpdateDefaultCurrency(gomock.Any(), entity.UserID(201), "RUB").Return(errUnknown),
 	)
 
 	req := usecase.SetDefaultCurrencyReqDTO{
@@ -144,14 +150,14 @@ func TestUpdateCurrency(t *testing.T) {
 		config.EXPECT().GetCurrencyCodes().Return([]string{"USD", "EUR"}),
 		ratesUpdaterService.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(
 			[]entity.Rate{
-				entity.NewRate("RUB", entity.NewDecimal(1, 0), entity.NewDateTime(2022, 10, 1, 0, 0, 0)),
-				entity.NewRate("EUR", entity.NewDecimal(16, 3), entity.NewDateTime(2022, 10, 1, 0, 0, 0)),
+				entity.NewRate("RUB", decimal.New(1, 0), timeHelper(2022, 10, 1)),
+				entity.NewRate("EUR", decimal.New(16, 3), timeHelper(2022, 10, 1)),
 			}, nil),
-		currencyStorage.EXPECT().Update(
-			entity.NewRate("RUB", entity.NewDecimal(1, 0), entity.NewDateTime(2022, 10, 1, 0, 0, 0)),
+		currencyStorage.EXPECT().Update(gomock.Any(),
+			entity.NewRate("RUB", decimal.New(1, 0), timeHelper(2022, 10, 1)),
 		).Return(nil),
-		currencyStorage.EXPECT().Update(
-			entity.NewRate("EUR", entity.NewDecimal(16, 3), entity.NewDateTime(2022, 10, 1, 0, 0, 0)),
+		currencyStorage.EXPECT().Update(gomock.Any(),
+			entity.NewRate("EUR", decimal.New(16, 3), timeHelper(2022, 10, 1)),
 		).Return(nil),
 	)
 
@@ -186,7 +192,7 @@ func TestUpdateCurrency_SrvError(t *testing.T) {
 func TestAddExpense(t *testing.T) {
 	t.Parallel()
 
-	time1 := time.Date(2022, time.October, 10, 0, 0, 0, 0, &time.Location{})
+	time1 := timeHelper(2022, 11, 10)
 
 	ctx := context.Background()
 
@@ -198,35 +204,52 @@ func TestAddExpense(t *testing.T) {
 	config := mock_usecase.NewMockIConfig(ctrl)
 	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
 
-	config.EXPECT().GetBaseCurrencyCode().Return("RUB").AnyTimes()
-	config.EXPECT().GetCurrencyCodes().Return([]string{"USD", "EUR", "JPY"}).AnyTimes()
-	config.EXPECT().GetFrequencyRateUpdateSec().Return(600).AnyTimes()
+	gomock.InOrder(
+		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
+		currencyStorage.EXPECT().Get(gomock.Any(), gomock.Any()).Return(entity.Rate{}, nil),
+		config.EXPECT().GetFrequencyRateUpdateSec().Return(60),
+		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
+		config.EXPECT().GetCurrencyCodes().Return([]string{"USD", "EUR", "JPY"}),
+		ratesUpdaterService.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil),
 
-	currencyStorage.EXPECT().Get("RUB").Return(
-		entity.NewRate("RUB", entity.NewDecimal(1, 0), entity.NewDateTimeFromTime(time.Now())),
-		nil)
-	currencyStorage.EXPECT().Get("EUR").Return(
-		entity.NewRate("EUR", entity.NewDecimal(16, 3), entity.NewDateTimeFromTime(time.Now())), nil)
-	expenseStorage.EXPECT().Create(entity.NewUserID(202),
-		entity.NewExpense("Netflix", entity.NewDecimal(625, 0), entity.NewDateFromTime(time1))).Return(nil)
+		userStorage.EXPECT().GetDefaultCurrency(gomock.Any(), gomock.Any()).
+			Return("EUR", nil),
+		currencyStorage.EXPECT().Get(gomock.Any(), "EUR").
+			Return(entity.NewRate("EUR", decimal.New(16, -3), time.Now()), nil),
+		expenseStorage.EXPECT().Create(gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(nil),
+		userStorage.EXPECT().GetLimits(gomock.Any(), gomock.Any()).
+			Return(decimal.New(10, 0), decimal.New(0, 0), decimal.New(50, 0), nil),
+		expenseStorage.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return(nil, nil),
+		expenseStorage.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return([]entity.Expense{
+				entity.NewExpense("Category1", decimal.New(2, 0), time1),
+			}, nil),
+	)
 
 	req := usecase.AddExpenseReqDTO{
 		UserID:   202,
 		Category: "Netflix",
-		Price:    10,
+		Price:    decimal.New(10, 0),
 		Date:     time1,
-		Currency: "EUR",
 	}
 
-	err := expenseUsecase.AddExpense(ctx, req)
+	resp, err := expenseUsecase.AddExpense(ctx, req)
 	assert.NoError(t, err)
+
+	assert.EqualValues(t, usecase.AddExpenseRespDTO{
+		Currency: "EUR",
+		Limits: map[int]decimal.Decimal{
+			utils.DayInterval:   decimal.New(10, 0),
+			utils.MonthInterval: decimal.New(48, 0),
+		},
+	}, resp)
 }
 
 func TestGetReport(t *testing.T) {
 	t.Parallel()
 
-	date := entity.NewDate(2022, 10, 1)
-
 	ctx := context.Background()
 
 	ctrl := gomock.NewController(t)
@@ -237,27 +260,30 @@ func TestGetReport(t *testing.T) {
 	config := mock_usecase.NewMockIConfig(ctrl)
 	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
 
-	config.EXPECT().GetBaseCurrencyCode().Return("RUB").AnyTimes()
-	config.EXPECT().GetCurrencyCodes().Return([]string{"USD", "EUR", "JPY"}).AnyTimes()
-	config.EXPECT().GetFrequencyRateUpdateSec().Return(600).AnyTimes()
+	gomock.InOrder(
+		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
+		currencyStorage.EXPECT().Get(gomock.Any(), gomock.Any()).Return(entity.Rate{}, nil),
+		config.EXPECT().GetFrequencyRateUpdateSec().Return(60),
+		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
+		config.EXPECT().GetCurrencyCodes().Return([]string{"USD", "EUR", "JPY"}),
+		ratesUpdaterService.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil),
 
-	currencyStorage.EXPECT().Get("RUB").Return(
-		entity.NewRate("RUB", entity.NewDecimal(1, 0), entity.NewDateTimeFromTime(time.Now())), nil)
-
-	expenseStorage.EXPECT().Get(entity.NewUserID(202), date, 7).Return(
-		[]entity.Expense{
-			entity.NewExpense("Spotify", entity.NewDecimal(600, 0), date),
-			entity.NewExpense("appStore", entity.NewDecimal(601345, 3), date),
-			entity.NewExpense("appStore", entity.NewDecimal(1059, 2), date),
-		}, nil)
-	currencyStorage.EXPECT().Get("EUR").Return(
-		entity.NewRate("EUR", entity.NewDecimal(16, 3), entity.NewDateTime(2022, 10, 1, 0, 0, 0)), nil)
+		expenseStorage.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+			Return([]entity.Expense{
+				entity.NewExpense("AppStore", decimal.New(3125, -1), timeHelper(2022, 11, 1)),
+				entity.NewExpense("Spotify", decimal.New(125, 0), timeHelper(2022, 11, 1)),
+				entity.NewExpense("AppStore", decimal.New(625, -1), timeHelper(2022, 11, 2)),
+			}, nil),
+		userStorage.EXPECT().GetDefaultCurrency(gomock.Any(), gomock.Any()).
+			Return("EUR", nil),
+		currencyStorage.EXPECT().Get(gomock.Any(), "EUR").
+			Return(entity.NewRate("EUR", decimal.New(16, -3), time.Now()), nil),
+	)
 
 	req := usecase.GetReportReqDTO{
-		UserID:   202,
-		Date:     date.ToTime(),
-		Days:     7,
-		Currency: "EUR",
+		UserID:       202,
+		Date:         timeHelper(2022, 10, 1),
+		IntervalType: utils.WeekInterval,
 	}
 
 	resp, err := expenseUsecase.GetReport(ctx, req)
@@ -265,8 +291,15 @@ func TestGetReport(t *testing.T) {
 
 	assert.EqualValues(t, usecase.GetReportRespDTO{
 		Currency: "EUR",
-		Categories: map[string]entity.Decimal{
-			"Spotify":  entity.NewDecimal(96, 1),
-			"appStore": entity.NewDecimal(979096, 5),
-		}}, resp)
+		Expenses: []usecase.ExpenseReportDTO{
+			{
+				Category: "AppStore",
+				Sum:      decimal.New(60000, -4),
+			},
+			{
+				Category: "Spotify",
+				Sum:      decimal.New(2000, -3),
+			},
+		},
+	}, resp)
 }

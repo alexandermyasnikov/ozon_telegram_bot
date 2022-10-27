@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 )
 
@@ -20,10 +21,9 @@ func New() *RatesUpdaterService {
 }
 
 type RatesCBR struct {
-	Date      string
-	Timestamp int64
-	Base      string
-	Rates     map[string]float64
+	Date  string
+	Base  string
+	Rates map[string]float64
 }
 
 func (s RatesUpdaterService) Get(ctx context.Context, base string, codes []string) ([]entity.Rate, error) {
@@ -53,10 +53,10 @@ func (s RatesUpdaterService) Get(ctx context.Context, base string, codes []strin
 		return nil, errors.Wrap(err, "RatesUpdaterService.Get")
 	}
 
-	time := entity.NewDateTimeFromTime(time.Unix(ratesCBR.Timestamp, 0))
+	time := time.Now()
 
 	rates := make([]entity.Rate, 0, len(codes))
-	rates = append(rates, entity.NewRate(base, entity.NewDecimal(1, 0), time))
+	rates = append(rates, entity.NewRate(base, decimal.New(1, 0), time))
 
 	for _, code := range codes {
 		ratio, ok := ratesCBR.Rates[code]
@@ -64,7 +64,7 @@ func (s RatesUpdaterService) Get(ctx context.Context, base string, codes []strin
 			return nil, errUnknownCurrencyCode
 		}
 
-		rates = append(rates, entity.NewRate(code, entity.NewDecimalFromFloat(ratio), time))
+		rates = append(rates, entity.NewRate(code, decimal.NewFromFloat(ratio), time))
 	}
 
 	return rates, nil

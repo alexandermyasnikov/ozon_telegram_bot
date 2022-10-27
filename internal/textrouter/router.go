@@ -9,30 +9,34 @@ import (
 )
 
 type Command struct {
-	// TODO нужно обобщить, в тестах громоздко все поля заполнять
 	SetDefaultCurrencyReqDTO *usecase.SetDefaultCurrencyReqDTO
 	AddExpenseReqDTO         *usecase.AddExpenseReqDTO
+	AddExpenseRespDTO        *usecase.AddExpenseRespDTO
 	GetReportReqDTO          *usecase.GetReportReqDTO
 	GetReportRespDTO         *usecase.GetReportRespDTO
+	SetLimitReqDTO           *usecase.SetLimitReqDTO
+	SetLimitRespDTO          *usecase.SetLimitRespDTO
+	GetLimitsReqDTO          *usecase.GetLimitsReqDTO
+	GetLimitsRespDTO         *usecase.GetLimitsRespDTO
 }
 
-type IHandler interface {
+type Handler interface {
 	ConvertTextToCommand(userID int64, text string, date time.Time, cmd *Command) bool
 	ExecuteCommand(context.Context, *Command) error
 	ConvertCommandToText(cmd *Command) (string, error)
 }
 
 type RouterText struct {
-	handlers []IHandler
+	handlers []Handler
 }
 
 func New() *RouterText {
 	return &RouterText{
-		handlers: make([]IHandler, 0),
+		handlers: make([]Handler, 0),
 	}
 }
 
-func (r *RouterText) Register(handler IHandler) {
+func (r *RouterText) Register(handler Handler) {
 	r.handlers = append(r.handlers, handler)
 }
 

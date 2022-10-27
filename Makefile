@@ -54,4 +54,4 @@ install-smartimports: bindir
 		mv ${BINDIR}/smartimports ${SMARTIMPORTS})
 
 docker-run:
-	sudo docker compose up
+	docker compose up
