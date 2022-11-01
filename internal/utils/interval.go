@@ -10,7 +10,15 @@ const (
 	DaysOfWeek = 7
 )
 
+func TruncDate(date time.Time) time.Time {
+	y, m, d := date.Date()
+
+	return time.Date(y, m, d, 0, 0, 0, 0, date.Location())
+}
+
 func GetInterval(date time.Time, intervalType int) (time.Time, time.Time) {
+	date = TruncDate(date)
+
 	switch intervalType {
 	case DayInterval:
 		return date, date.AddDate(0, 0, 1)

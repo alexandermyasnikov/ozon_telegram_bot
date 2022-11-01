@@ -10,6 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/logger"
+	"go.opentelemetry.io/otel"
 )
 
 var errUnknownCurrencyCode = errors.New("unknown code")
@@ -27,6 +29,11 @@ type RatesCBR struct {
 }
 
 func (s RatesUpdaterService) Get(ctx context.Context, base string, codes []string) ([]entity.Rate, error) {
+	logger.Infof("RatesUpdaterService.Get: %v %v", base, codes)
+
+	ctx, span := otel.Tracer("RatesUpdaterService").Start(ctx, "Get")
+	defer span.End()
+
 	url := "https://www.cbr-xml-daily.ru/latest.js"
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)

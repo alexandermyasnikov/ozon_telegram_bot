@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
+	"go.opentelemetry.io/otel"
 )
 
 type PgxIface interface {
@@ -26,8 +27,11 @@ func New(conn PgxIface) *ExpensePgsqlStorage {
 }
 
 func (s *ExpensePgsqlStorage) Create(ctx context.Context, userID entity.UserID, expense entity.Expense) error {
+	ctx, span := otel.Tracer("ExpensePgsqlStorage").Start(ctx, "Create")
+	defer span.End()
+
 	_, err := s.conn.Exec(ctx,
-		`INSERT INTO epxenses (user_id, category, price, time) VALUES ($1, $2, $3, $4)`,
+		`INSERT INTO expenses (user_id, category, price, time) VALUES ($1, $2, $3, $4)`,
 		int64(userID), expense.GetCategory(), expense.GetPrice().String(), expense.GetDate())
 
 	return errors.Wrap(err, "ExpensePgsqlStorage.Create")
@@ -36,8 +40,11 @@ func (s *ExpensePgsqlStorage) Create(ctx context.Context, userID entity.UserID, 
 func (s *ExpensePgsqlStorage) Get(ctx context.Context, userID entity.UserID, dateStart time.Time, dateEnd time.Time) (
 	[]entity.Expense, error,
 ) {
+	ctx, span := otel.Tracer("ExpensePgsqlStorage").Start(ctx, "Get")
+	defer span.End()
+
 	rows, err := s.conn.Query(ctx,
-		`SELECT category, price, time FROM epxenses
+		`SELECT category, price, time FROM expenses
 		WHERE user_id = $1 AND time >= $2 AND time < $3
 		ORDER BY category`,
 		int64(userID), dateStart, dateEnd)

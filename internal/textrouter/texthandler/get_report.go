@@ -27,6 +27,10 @@ func NewGetReport(expenseUsecase ExpenseUsecaseGR) *GetReport {
 	}
 }
 
+func (h *GetReport) Name() string {
+	return "getReport"
+}
+
 func (h *GetReport) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	intervalIndex := 1
 	argsCountMin := 2

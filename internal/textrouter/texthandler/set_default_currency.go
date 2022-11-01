@@ -25,6 +25,10 @@ func NewSetDefaultCurrency(expenseUsecase IExpenseUsecaseSDC) *SetDefaultCurrenc
 	}
 }
 
+func (h *SetDefaultCurrency) Name() string {
+	return "setDefaultCurrency"
+}
+
 func (h *SetDefaultCurrency) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command,
 ) bool {
 	currencyIndex := 1

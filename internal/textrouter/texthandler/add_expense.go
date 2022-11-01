@@ -27,6 +27,10 @@ func NewAddExpense(expenseUsecase ExpenseUsecaseAE) *AddExpense {
 	}
 }
 
+func (h *AddExpense) Name() string {
+	return "addExpense"
+}
+
 func (h *AddExpense) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	categoryIndex := 1
 	priceIndex := 2

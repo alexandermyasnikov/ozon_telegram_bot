@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
+	"go.opentelemetry.io/otel"
 )
 
 type PgxIface interface {
@@ -25,6 +26,9 @@ func New(conn PgxIface) *UserPgsqlStorage {
 }
 
 func (s *UserPgsqlStorage) GetDefaultCurrency(ctx context.Context, userID entity.UserID) (string, error) {
+	ctx, span := otel.Tracer("UserPgsqlStorage").Start(ctx, "GetDefaultCurrency")
+	defer span.End()
+
 	var currency string
 
 	err := s.conn.QueryRow(ctx,
@@ -38,6 +42,9 @@ func (s *UserPgsqlStorage) GetDefaultCurrency(ctx context.Context, userID entity
 }
 
 func (s *UserPgsqlStorage) UpdateDefaultCurrency(ctx context.Context, userID entity.UserID, currency string) error {
+	ctx, span := otel.Tracer("UserPgsqlStorage").Start(ctx, "UpdateDefaultCurrency")
+	defer span.End()
+
 	_, err := s.conn.Exec(ctx,
 		`INSERT INTO users (id, currency) VALUES ($1, $2)
 			ON CONFLICT (id) DO UPDATE SET currency = $2`,
@@ -49,6 +56,9 @@ func (s *UserPgsqlStorage) UpdateDefaultCurrency(ctx context.Context, userID ent
 func (s *UserPgsqlStorage) GetLimits(ctx context.Context, userID entity.UserID) (
 	decimal.Decimal, decimal.Decimal, decimal.Decimal, error,
 ) {
+	ctx, span := otel.Tracer("UserPgsqlStorage").Start(ctx, "GetLimits")
+	defer span.End()
+
 	var (
 		dayLimitStr   string
 		weekLimitStr  string
@@ -81,6 +91,9 @@ func (s *UserPgsqlStorage) GetLimits(ctx context.Context, userID entity.UserID) 
 }
 
 func (s *UserPgsqlStorage) UpdateDayLimit(ctx context.Context, userID entity.UserID, limit decimal.Decimal) error {
+	ctx, span := otel.Tracer("UserPgsqlStorage").Start(ctx, "UpdateDayLimit")
+	defer span.End()
+
 	_, err := s.conn.Exec(ctx,
 		`INSERT INTO users (id, day_limit) VALUES ($1, $2)
 			ON CONFLICT (id) DO UPDATE SET day_limit = $2`,
@@ -90,6 +103,9 @@ func (s *UserPgsqlStorage) UpdateDayLimit(ctx context.Context, userID entity.Use
 }
 
 func (s *UserPgsqlStorage) UpdateWeekLimit(ctx context.Context, userID entity.UserID, limit decimal.Decimal) error {
+	ctx, span := otel.Tracer("UserPgsqlStorage").Start(ctx, "UpdateWeekLimit")
+	defer span.End()
+
 	_, err := s.conn.Exec(ctx,
 		`INSERT INTO users (id, week_limit) VALUES ($1, $2)
 			ON CONFLICT (id) DO UPDATE SET week_limit = $2`,
@@ -99,6 +115,9 @@ func (s *UserPgsqlStorage) UpdateWeekLimit(ctx context.Context, userID entity.Us
 }
 
 func (s *UserPgsqlStorage) UpdateMonthLimit(ctx context.Context, userID entity.UserID, limit decimal.Decimal) error {
+	ctx, span := otel.Tracer("UserPgsqlStorage").Start(ctx, "UpdateMonthLimit")
+	defer span.End()
+
 	_, err := s.conn.Exec(ctx,
 		`INSERT INTO users (id, month_limit) VALUES ($1, $2)
 			ON CONFLICT (id) DO UPDATE SET month_limit = $2`,

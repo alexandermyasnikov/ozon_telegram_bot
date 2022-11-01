@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
+	"go.opentelemetry.io/otel"
 )
 
 type PgxIface interface {
@@ -26,6 +27,9 @@ func New(conn PgxIface) *CurrencyPgsqlStorage {
 }
 
 func (s *CurrencyPgsqlStorage) Get(ctx context.Context, currency string) (entity.Rate, error) {
+	ctx, span := otel.Tracer("CurrencyPgsqlStorage").Start(ctx, "Get")
+	defer span.End()
+
 	var (
 		code     string
 		ratioStr string
@@ -48,6 +52,9 @@ func (s *CurrencyPgsqlStorage) Get(ctx context.Context, currency string) (entity
 }
 
 func (s *CurrencyPgsqlStorage) GetAll(ctx context.Context) ([]entity.Rate, error) {
+	ctx, span := otel.Tracer("CurrencyPgsqlStorage").Start(ctx, "GetAll")
+	defer span.End()
+
 	rows, err := s.conn.Query(ctx,
 		`SELECT code, ratio, time FROM currencies`)
 	if err != nil {
@@ -77,6 +84,9 @@ func (s *CurrencyPgsqlStorage) GetAll(ctx context.Context) ([]entity.Rate, error
 }
 
 func (s *CurrencyPgsqlStorage) Update(ctx context.Context, rate entity.Rate) error {
+	ctx, span := otel.Tracer("CurrencyPgsqlStorage").Start(ctx, "Update")
+	defer span.End()
+
 	_, err := s.conn.Exec(ctx,
 		`INSERT INTO currencies (code, ratio, time) VALUES ($1, $2, $3)
 		ON CONFLICT (code) DO UPDATE

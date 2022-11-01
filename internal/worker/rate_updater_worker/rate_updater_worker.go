@@ -2,8 +2,9 @@ package rateupdaterworker
 
 import (
 	"context"
-	"log"
 	"time"
+
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/logger"
 )
 
 type usecase interface {
@@ -27,6 +28,11 @@ func New(usecase usecase, cfg config) *RatesUpdaterWorker {
 }
 
 func (w RatesUpdaterWorker) Run(ctx context.Context) {
+	err := w.usecase.UpdateCurrency(ctx)
+	if err != nil {
+		logger.Errorf("can not update currency: %v", err)
+	}
+
 	ticker := time.NewTicker(time.Duration(w.cfg.GetFrequencyRateUpdateSec()) * time.Second)
 
 	for {
@@ -40,7 +46,7 @@ func (w RatesUpdaterWorker) Run(ctx context.Context) {
 			default:
 				err := w.usecase.UpdateCurrency(ctx)
 				if err != nil {
-					log.Println(err)
+					logger.Errorf("can not update currency: %v", err)
 				}
 			}
 		}

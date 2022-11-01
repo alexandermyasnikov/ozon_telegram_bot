@@ -26,3 +26,4 @@ linters-settings:
   varnamelen:
    ignore-decls:
     - wg sync.WaitGroup
+    - tp *sdktrace.TracerProvider

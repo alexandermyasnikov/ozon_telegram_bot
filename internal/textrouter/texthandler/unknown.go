@@ -13,6 +13,10 @@ func NewUnknown() *Unknown {
 	return &Unknown{}
 }
 
+func (h *Unknown) Name() string {
+	return "unknown"
+}
+
 func (h *Unknown) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	return true
 }

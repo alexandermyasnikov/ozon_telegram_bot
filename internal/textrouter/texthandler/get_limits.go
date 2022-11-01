@@ -26,6 +26,10 @@ func NewGetLimits(expenseUsecase ExpenseUsecaseGL) *GetLimits {
 	}
 }
 
+func (h *GetLimits) Name() string {
+	return "getLimits"
+}
+
 func (h *GetLimits) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	fields := strings.Fields(text)
 	if len(fields) != 1 || fields[0] != "лимиты" {

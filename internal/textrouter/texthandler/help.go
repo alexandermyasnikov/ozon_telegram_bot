@@ -14,6 +14,10 @@ func NewHelp() *Help {
 	return &Help{}
 }
 
+func (h *Help) Name() string {
+	return "help"
+}
+
 func (h *Help) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	return strings.HasPrefix(text, "/help")
 }

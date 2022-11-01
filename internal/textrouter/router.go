@@ -6,6 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/metrics"
+	"go.opentelemetry.io/otel"
 )
 
 type Command struct {
@@ -21,6 +23,7 @@ type Command struct {
 }
 
 type Handler interface {
+	Name() string
 	ConvertTextToCommand(userID int64, text string, date time.Time, cmd *Command) bool
 	ExecuteCommand(context.Context, *Command) error
 	ConvertCommandToText(cmd *Command) (string, error)
@@ -41,6 +44,9 @@ func (r *RouterText) Register(handler Handler) {
 }
 
 func (r *RouterText) Execute(ctx context.Context, userID int64, textIn string, date time.Time) (string, error) {
+	ctx, span := otel.Tracer("RouterText").Start(ctx, "Execute")
+	defer span.End()
+
 	if len(textIn) == 0 {
 		return "", nil
 	}
@@ -63,7 +69,7 @@ func (r *RouterText) Execute(ctx context.Context, userID int64, textIn string, d
 
 	handler := r.handlers[handlerID]
 
-	err := handler.ExecuteCommand(ctx, &cmd)
+	err := r.executeCommand(ctx, handler, &cmd)
 	if err != nil {
 		return "", errors.Wrap(err, "handler.ExecuteCommand")
 	}
@@ -71,4 +77,18 @@ func (r *RouterText) Execute(ctx context.Context, userID int64, textIn string, d
 	textOut, err := handler.ConvertCommandToText(&cmd)
 
 	return textOut, errors.Wrap(err, "RouterText.Executer")
+}
+
+func (r *RouterText) executeCommand(ctx context.Context, handler Handler, cmd *Command) error {
+	ctx, span := otel.Tracer("RouterText").Start(ctx, "ExecuteCommand")
+	defer span.End()
+
+	startTime := time.Now()
+	err := handler.ExecuteCommand(ctx, cmd)
+	duration := time.Since(startTime)
+
+	metrics.SummaryExecuteTimeObserve(handler.Name(), duration.Seconds())
+	metrics.CounterMsgInc(handler.Name())
+
+	return errors.Wrap(err, "RouterText.executeCommand")
 }

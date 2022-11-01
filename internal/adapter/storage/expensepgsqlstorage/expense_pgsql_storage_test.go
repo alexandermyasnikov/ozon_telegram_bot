@@ -44,7 +44,7 @@ func TestExpensePgsqlStorage_Create(t *testing.T) {
 
 	date := time.Now()
 
-	mock.ExpectExec(`INSERT INTO epxenses \(user_id, category, price, time\)`).
+	mock.ExpectExec(`INSERT INTO expenses \(user_id, category, price, time\)`).
 		WithArgs(int64(100), "Macbook", "150350.56", date).
 		WillReturnResult(pgxmock.NewResult("INSERT", 1))
 
@@ -62,7 +62,7 @@ func TestExpensePgsqlStorage_CreateError(t *testing.T) {
 
 	date := time.Now()
 
-	mock.ExpectExec(`INSERT INTO epxenses \(user_id, category, price, time\)`).
+	mock.ExpectExec(`INSERT INTO expenses \(user_id, category, price, time\)`).
 		WithArgs(int64(100), "Macbook", "150350.56", date).
 		WillReturnError(errInternal)
 
@@ -88,7 +88,7 @@ func TestExpensePgsqlStorage_GetLimits(t *testing.T) {
 		AddRow("Sport", "980", dateStart.AddDate(0, 0, 1)).
 		AddRow("AppStore", "900", dateStart.AddDate(0, 0, 2))
 
-	mock.ExpectQuery(`SELECT category, price, time FROM epxenses`).
+	mock.ExpectQuery(`SELECT category, price, time FROM expenses`).
 		WithArgs(int64(100), dateStart, dateEnd).
 		WillReturnRows(rows)
 

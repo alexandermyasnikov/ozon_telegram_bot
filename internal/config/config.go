@@ -10,13 +10,20 @@ import (
 const ConfigFile = "./data/config.yaml"
 
 type Config struct {
+	Logger   LoggerConfig   `yaml:"logger"`
 	Telegram TelegramConfig `yaml:"telegram"`
 	Rates    RatesConfig    `yaml:"rates"`
 	Database DatabaseConfig `yaml:"database"`
+	Jaeger   JaegerConfig   `yaml:"jaeger"`
+}
+
+type LoggerConfig struct {
+	Devel bool `yaml:"devel"`
 }
 
 type TelegramConfig struct {
-	Token string `yaml:"token"`
+	Enable bool   `yaml:"enable"`
+	Token  string `yaml:"token"`
 }
 
 type RatesConfig struct {
@@ -27,6 +34,10 @@ type RatesConfig struct {
 }
 
 type DatabaseConfig struct {
+	URL string `yaml:"url"`
+}
+
+type JaegerConfig struct {
 	URL string `yaml:"url"`
 }
 
@@ -46,9 +57,18 @@ func New(file string) (*Config, error) {
 	return &cfg, nil
 }
 
+func (c Config) GetLoggerDevel() bool {
+	return c.Logger.Devel
+}
+
+func (c Config) TelegramEnable() bool {
+	return c.Telegram.Enable
+}
+
 func (c Config) TelegramToken() string {
 	return c.Telegram.Token
 }
+
 func (c Config) GetBaseCurrencyCode() string {
 	return c.Rates.Base
 }
@@ -67,4 +87,8 @@ func (c Config) GetRatesService() string {
 
 func (c Config) GetDatabaseURL() string {
 	return c.Database.URL
+}
+
+func (c Config) GetJaegerURL() string {
+	return c.Jaeger.URL
 }

@@ -241,8 +241,8 @@ func TestAddExpense(t *testing.T) {
 	assert.EqualValues(t, usecase.AddExpenseRespDTO{
 		Currency: "EUR",
 		Limits: map[int]decimal.Decimal{
-			utils.DayInterval:   decimal.New(10, 0),
-			utils.MonthInterval: decimal.New(48, 0),
+			utils.DayInterval:   decimal.New(160, -3),
+			utils.MonthInterval: decimal.New(768, -3),
 		},
 	}, resp)
 }

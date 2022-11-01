@@ -27,6 +27,10 @@ func NewSetLimit(expenseUsecase ExpenseUsecaseSL) *SetLimit {
 	}
 }
 
+func (h *SetLimit) Name() string {
+	return "setLimit"
+}
+
 func (h *SetLimit) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	intervalIndex := 1
 	limitIndex := 2

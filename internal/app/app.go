@@ -2,10 +2,13 @@ package app
 
 import (
 	"context"
-	"log"
+	"net/http"
 	"sync"
+	"time"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterservicecbr"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterserviceexchangerate"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currencypgsqlstorage"
@@ -17,6 +20,13 @@ import (
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter/texthandler"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 	rateupdaterworker "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/worker/rate_updater_worker"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/logger"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/exporters/jaeger"
+	"go.opentelemetry.io/otel/propagation"
+	"go.opentelemetry.io/otel/sdk/resource"
+	sdktrace "go.opentelemetry.io/otel/sdk/trace"
+	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
 
 type client interface {
@@ -32,28 +42,36 @@ type IRatesUpdaterService interface {
 }
 
 type config interface {
+	TelegramEnable() bool
 	TelegramToken() string
 	GetBaseCurrencyCode() string
 	GetCurrencyCodes() []string
 	GetFrequencyRateUpdateSec() int
 	GetRatesService() string
 	GetDatabaseURL() string
+	GetJaegerURL() string
 }
 
 var _ client = &tg.Client{}
 
 type App struct {
-	client client
-	worker worker
-	conn   *pgx.Conn
+	client        client
+	worker        worker
+	conn          *pgx.Conn
+	router        *textrouter.RouterText
+	tp            *sdktrace.TracerProvider
+	metricsServer *http.Server
 }
 
-func New(cfg config) (App, error) {
-	ctx := context.Background()
+func New(ctx context.Context, cfg config) (App, error) {
+	tp, err := registerJaeger(cfg.GetJaegerURL())
+	if err != nil {
+		logger.Fatalf("jaeger client init failed: %v", err)
+	}
 
 	conn, err := pgx.Connect(ctx, cfg.GetDatabaseURL())
 	if err != nil {
-		log.Fatal("pg client init failed:", err)
+		logger.Fatalf("pg client init failed: %v", err)
 	}
 
 	currencyStorage := currencypgsqlstorage.New(conn)
@@ -85,27 +103,51 @@ func New(cfg config) (App, error) {
 
 	rateUpdaterWorker := rateupdaterworker.New(expenseUsecase, cfg)
 
-	tgClient, err := tg.New(cfg, routerText)
-	if err != nil {
-		log.Fatal("tg client init failed:", err)
+	var tgClient *tg.Client
+
+	if cfg.TelegramEnable() {
+		tgClient, err = tg.New(cfg, routerText)
+		if err != nil {
+			logger.Fatalf("tg client init failed: %v", err)
+		}
+	}
+
+	http.Handle("/metrics", promhttp.Handler())
+
+	metricsServer := &http.Server{ //nolint:exhaustruct
+		Addr:              ":8080",
+		ReadHeaderTimeout: 1 * time.Second,
 	}
 
 	return App{
-		client: tgClient,
-		worker: rateUpdaterWorker,
-		conn:   conn,
+		client:        tgClient,
+		worker:        rateUpdaterWorker,
+		conn:          conn,
+		router:        routerText,
+		tp:            tp,
+		metricsServer: metricsServer,
 	}, nil
 }
 
 func (a *App) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 
-	wg.Add(1 + 1)
-
 	go func() {
-		defer wg.Done()
-		a.client.Run(ctx)
+		if err := a.metricsServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			logger.Fatalf("prometheus handler start failed: %v", err)
+		}
 	}()
+
+	if p, ok := a.client.(*tg.Client); ok && p != nil {
+		wg.Add(1)
+
+		go func() {
+			defer wg.Done()
+			a.client.Run(ctx)
+		}()
+	}
+
+	wg.Add(1)
 
 	go func() {
 		defer wg.Done()
@@ -115,4 +157,45 @@ func (a *App) Run(ctx context.Context) {
 	wg.Wait()
 
 	a.conn.Close(ctx)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second) //nolint:contextcheck
+	defer cancel()
+
+	if err := a.tp.Shutdown(ctx); err != nil {
+		logger.Errorf("can not shutdown jaeger: %v", err)
+	}
+
+	ctx, cancel = context.WithTimeout(context.Background(), 1*time.Second) //nolint:contextcheck
+	defer cancel()
+
+	if err := a.metricsServer.Shutdown(ctx); err != nil {
+		logger.Errorf("can not shutdown metricsServer: %v", err)
+	}
+}
+
+func (a *App) GetRouterForTest() *textrouter.RouterText {
+	return a.router
+}
+
+func registerJaeger(url string) (*sdktrace.TracerProvider, error) {
+	exp, err := jaeger.New(jaeger.WithCollectorEndpoint(
+		jaeger.WithEndpoint(url)))
+	if err != nil {
+		return nil, errors.Wrap(err, "RegisterJaeger")
+	}
+
+	tp := sdktrace.NewTracerProvider(
+		sdktrace.WithBatcher(exp),
+		sdktrace.WithResource(resource.NewWithAttributes(
+			semconv.SchemaURL,
+			semconv.ServiceNameKey.String("telegram-bot"),
+		)),
+	)
+
+	otel.SetTracerProvider(tp)
+	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(
+		propagation.TraceContext{},
+		propagation.Baggage{}))
+
+	return tp, nil
 }

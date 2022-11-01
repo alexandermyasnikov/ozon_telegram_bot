@@ -14,6 +14,10 @@ func NewAbout() *About {
 	return &About{}
 }
 
+func (h *About) Name() string {
+	return "about"
+}
+
 func (h *About) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
 	return strings.HasPrefix(text, "/about")
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/shopspring/decimal"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
+	"go.opentelemetry.io/otel"
 )
 
 type ICurrencyStorage interface {
@@ -62,6 +63,9 @@ func NewExpenseUsecase(currencyStorage ICurrencyStorage, userStorage IUserStorag
 }
 
 func (uc *ExpenseUsecase) SetDefaultCurrency(ctx context.Context, req SetDefaultCurrencyReqDTO) error {
+	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "SetDefaultCurrency")
+	defer span.End()
+
 	userID := entity.UserID(req.UserID)
 
 	ok := uc.isSupportedCurrencyCode(req.Currency)
@@ -75,6 +79,9 @@ func (uc *ExpenseUsecase) SetDefaultCurrency(ctx context.Context, req SetDefault
 }
 
 func (uc *ExpenseUsecase) SetLimit(ctx context.Context, req SetLimitReqDTO) (SetLimitRespDTO, error) {
+	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "SetLimit")
+	defer span.End()
+
 	userID := entity.UserID(req.UserID)
 
 	currency := uc.getCurrencyForUser(ctx, userID)
@@ -84,7 +91,7 @@ func (uc *ExpenseUsecase) SetLimit(ctx context.Context, req SetLimitReqDTO) (Set
 		return SetLimitRespDTO{}, errors.Wrap(err, "ExpenseUsecase.SetLimit")
 	}
 
-	req.Limit.Div(rate.GetRatio())
+	req.Limit = req.Limit.Div(rate.GetRatio())
 
 	switch req.IntervalType {
 	case utils.DayInterval:
@@ -105,6 +112,9 @@ func (uc *ExpenseUsecase) SetLimit(ctx context.Context, req SetLimitReqDTO) (Set
 }
 
 func (uc *ExpenseUsecase) GetLimits(ctx context.Context, req GetLimitsReqDTO) (GetLimitsRespDTO, error) {
+	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "GetLimits")
+	defer span.End()
+
 	userID := entity.UserID(req.UserID)
 
 	dayLimit, weekLimit, monthLimit, err := uc.userStorage.GetLimits(ctx, userID)
@@ -132,6 +142,9 @@ func (uc *ExpenseUsecase) GetLimits(ctx context.Context, req GetLimitsReqDTO) (G
 }
 
 func (uc *ExpenseUsecase) AddExpense(ctx context.Context, req AddExpenseReqDTO) (AddExpenseRespDTO, error) {
+	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "AddExpense")
+	defer span.End()
+
 	userID := entity.UserID(req.UserID)
 
 	err := uc.tryUpdateRates(ctx, false)
@@ -154,6 +167,10 @@ func (uc *ExpenseUsecase) AddExpense(ctx context.Context, req AddExpenseReqDTO) 
 	}
 
 	limits, err := uc.checkLimits(ctx, userID, req.Date)
+
+	for i := range limits {
+		limits[i] = limits[i].Mul(rate.GetRatio())
+	}
 
 	resp := AddExpenseRespDTO{
 		Currency: currency,
@@ -212,6 +229,9 @@ func (uc *ExpenseUsecase) checkLimits(ctx context.Context, userID entity.UserID,
 }
 
 func (uc *ExpenseUsecase) GetReport(ctx context.Context, req GetReportReqDTO) (GetReportRespDTO, error) {
+	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "GetReport")
+	defer span.End()
+
 	userID := entity.UserID(req.UserID)
 
 	err := uc.tryUpdateRates(ctx, false)
