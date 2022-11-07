@@ -346,3 +346,45 @@ func (mr *MockIConfigMockRecorder) GetFrequencyRateUpdateSec() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetFrequencyRateUpdateSec", reflect.TypeOf((*MockIConfig)(nil).GetFrequencyRateUpdateSec))
 }
+
+// GetReportCacheEnable mocks base method.
+func (m *MockIConfig) GetReportCacheEnable() bool {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReportCacheEnable")
+	ret0, _ := ret[0].(bool)
+	return ret0
+}
+
+// GetReportCacheEnable indicates an expected call of GetReportCacheEnable.
+func (mr *MockIConfigMockRecorder) GetReportCacheEnable() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReportCacheEnable", reflect.TypeOf((*MockIConfig)(nil).GetReportCacheEnable))
+}
+
+// GetReportCacheSize mocks base method.
+func (m *MockIConfig) GetReportCacheSize() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReportCacheSize")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetReportCacheSize indicates an expected call of GetReportCacheSize.
+func (mr *MockIConfigMockRecorder) GetReportCacheSize() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReportCacheSize", reflect.TypeOf((*MockIConfig)(nil).GetReportCacheSize))
+}
+
+// GetReportCacheTTL mocks base method.
+func (m *MockIConfig) GetReportCacheTTL() int {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReportCacheTTL")
+	ret0, _ := ret[0].(int)
+	return ret0
+}
+
+// GetReportCacheTTL indicates an expected call of GetReportCacheTTL.
+func (mr *MockIConfigMockRecorder) GetReportCacheTTL() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReportCacheTTL", reflect.TypeOf((*MockIConfig)(nil).GetReportCacheTTL))
+}

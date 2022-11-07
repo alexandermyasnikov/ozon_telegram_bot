@@ -11,10 +11,12 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterservicecbr"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterserviceexchangerate"
+	currencycachestorage "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currency_cache_storage" //nolint:lll
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currencypgsqlstorage"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/expensepgsqlstorage"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/userpgsqlstorage"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/clients/tg"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/config"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter/texthandler"
@@ -41,17 +43,6 @@ type IRatesUpdaterService interface {
 	Get(ctx context.Context, base string, codes []string) ([]entity.Rate, error)
 }
 
-type config interface {
-	TelegramEnable() bool
-	TelegramToken() string
-	GetBaseCurrencyCode() string
-	GetCurrencyCodes() []string
-	GetFrequencyRateUpdateSec() int
-	GetRatesService() string
-	GetDatabaseURL() string
-	GetJaegerURL() string
-}
-
 var _ client = &tg.Client{}
 
 type App struct {
@@ -63,7 +54,7 @@ type App struct {
 	metricsServer *http.Server
 }
 
-func New(ctx context.Context, cfg config) (App, error) {
+func New(ctx context.Context, cfg *config.Config) (App, error) {
 	tp, err := registerJaeger(cfg.GetJaegerURL())
 	if err != nil {
 		logger.Fatalf("jaeger client init failed: %v", err)
@@ -74,7 +65,8 @@ func New(ctx context.Context, cfg config) (App, error) {
 		logger.Fatalf("pg client init failed: %v", err)
 	}
 
-	currencyStorage := currencypgsqlstorage.New(conn)
+	currencyStorage := currencycachestorage.New(currencypgsqlstorage.New(conn), cfg)
+
 	userStorage := userpgsqlstorage.New(conn)
 	expenseStorage := expensepgsqlstorage.New(conn)
 

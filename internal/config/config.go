@@ -10,11 +10,13 @@ import (
 const ConfigFile = "./data/config.yaml"
 
 type Config struct {
-	Logger   LoggerConfig   `yaml:"logger"`
-	Telegram TelegramConfig `yaml:"telegram"`
-	Rates    RatesConfig    `yaml:"rates"`
-	Database DatabaseConfig `yaml:"database"`
-	Jaeger   JaegerConfig   `yaml:"jaeger"`
+	Logger        LoggerConfig   `yaml:"logger"`
+	Telegram      TelegramConfig `yaml:"telegram"`
+	Rates         RatesConfig    `yaml:"rates"`
+	Database      DatabaseConfig `yaml:"database"`
+	Jaeger        JaegerConfig   `yaml:"jaeger"`
+	CurrencyCache CacheConfig    `yaml:"currencyCache"`
+	ReportCache   CacheConfig    `yaml:"reportCache"`
 }
 
 type LoggerConfig struct {
@@ -39,6 +41,12 @@ type DatabaseConfig struct {
 
 type JaegerConfig struct {
 	URL string `yaml:"url"`
+}
+
+type CacheConfig struct {
+	Enable bool `yaml:"enable"`
+	Size   int  `yaml:"size"`
+	TTL    int  `yaml:"ttl"`
 }
 
 func New(file string) (*Config, error) {
@@ -91,4 +99,28 @@ func (c Config) GetDatabaseURL() string {
 
 func (c Config) GetJaegerURL() string {
 	return c.Jaeger.URL
+}
+
+func (c Config) GetCurrencyCacheEnable() bool {
+	return c.CurrencyCache.Enable
+}
+
+func (c Config) GetCurrencyCacheSize() int {
+	return c.CurrencyCache.Size
+}
+
+func (c Config) GetCurrencyCacheTTL() int {
+	return c.CurrencyCache.TTL
+}
+
+func (c Config) GetReportCacheEnable() bool {
+	return c.ReportCache.Enable
+}
+
+func (c Config) GetReportCacheSize() int {
+	return c.ReportCache.Size
+}
+
+func (c Config) GetReportCacheTTL() int {
+	return c.ReportCache.TTL
 }

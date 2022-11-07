@@ -27,3 +27,5 @@ linters-settings:
    ignore-decls:
     - wg sync.WaitGroup
     - tp *sdktrace.TracerProvider
+    - mu *sync.RWMutex
+    - ok bool

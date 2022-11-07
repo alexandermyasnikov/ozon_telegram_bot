@@ -16,7 +16,7 @@ func TestAppTest(t *testing.T) { //nolint:paralleltest
 		t.Skip("skip integration test")
 	}
 
-	cfg := config.Config{
+	cfg := &config.Config{
 		Telegram: config.TelegramConfig{
 			Enable: false,
 			Token:  "",
@@ -35,6 +35,16 @@ func TestAppTest(t *testing.T) { //nolint:paralleltest
 		},
 		Logger: config.LoggerConfig{
 			Devel: true,
+		},
+		CurrencyCache: config.CacheConfig{
+			Enable: true,
+			Size:   10,
+			TTL:    600,
+		},
+		ReportCache: config.CacheConfig{
+			Enable: true,
+			Size:   1000,
+			TTL:    600,
 		},
 	}
 

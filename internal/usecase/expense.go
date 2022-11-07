@@ -2,11 +2,14 @@ package usecase
 
 import (
 	"context"
+	"fmt"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
+	lrucache "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/cache/lru"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 	"go.opentelemetry.io/otel"
@@ -40,6 +43,9 @@ type IConfig interface {
 	GetBaseCurrencyCode() string
 	GetCurrencyCodes() []string
 	GetFrequencyRateUpdateSec() int
+	GetReportCacheEnable() bool
+	GetReportCacheSize() int
+	GetReportCacheTTL() int
 }
 
 type ExpenseUsecase struct {
@@ -48,17 +54,24 @@ type ExpenseUsecase struct {
 	expenseStorage      IExpenseStorage
 	ratesUpdaterService IRatesUpdaterService
 	config              IConfig
+	cache               *lrucache.LRUCache
 }
 
 func NewExpenseUsecase(currencyStorage ICurrencyStorage, userStorage IUserStorage, expenseStorage IExpenseStorage,
 	ratesUpdaterService IRatesUpdaterService, config IConfig,
 ) *ExpenseUsecase {
+	var cache *lrucache.LRUCache
+	if config.GetReportCacheEnable() {
+		cache = lrucache.NewLRUCache(&sync.RWMutex{}, config.GetReportCacheSize())
+	}
+
 	return &ExpenseUsecase{
 		currencyStorage:     currencyStorage,
 		userStorage:         userStorage,
 		expenseStorage:      expenseStorage,
 		ratesUpdaterService: ratesUpdaterService,
 		config:              config,
+		cache:               cache,
 	}
 }
 
@@ -144,6 +157,8 @@ func (uc *ExpenseUsecase) GetLimits(ctx context.Context, req GetLimitsReqDTO) (G
 func (uc *ExpenseUsecase) AddExpense(ctx context.Context, req AddExpenseReqDTO) (AddExpenseRespDTO, error) {
 	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "AddExpense")
 	defer span.End()
+
+	uc.deleteReportFromCache(req)
 
 	userID := entity.UserID(req.UserID)
 
@@ -232,6 +247,10 @@ func (uc *ExpenseUsecase) GetReport(ctx context.Context, req GetReportReqDTO) (G
 	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "GetReport")
 	defer span.End()
 
+	if report, ok := uc.getReportFromCache(req); ok {
+		return report, nil
+	}
+
 	userID := entity.UserID(req.UserID)
 
 	err := uc.tryUpdateRates(ctx, false)
@@ -280,6 +299,8 @@ func (uc *ExpenseUsecase) GetReport(ctx context.Context, req GetReportReqDTO) (G
 		Currency: currency,
 		Expenses: expensesReport,
 	}
+
+	uc.addReportToCache(req, resp)
 
 	return resp, nil
 }
@@ -365,4 +386,51 @@ func (uc *ExpenseUsecase) isSupportedCurrencyCode(currency string) bool {
 	}
 
 	return false
+}
+
+func (uc *ExpenseUsecase) addReportToCache(req GetReportReqDTO, resp GetReportRespDTO) {
+	if !uc.config.GetReportCacheEnable() {
+		return
+	}
+
+	key := fmt.Sprintf("%d_%d_%d", req.UserID, utils.TruncDate(req.Date).Unix(), req.IntervalType)
+
+	uc.cache.Add(time.Now(), key, resp, uc.config.GetReportCacheTTL())
+}
+
+func (uc *ExpenseUsecase) getReportFromCache(req GetReportReqDTO) (GetReportRespDTO, bool) {
+	var resp GetReportRespDTO
+
+	if !uc.config.GetReportCacheEnable() {
+		return resp, false
+	}
+
+	key := fmt.Sprintf("%d_%d_%d", req.UserID, utils.TruncDate(req.Date).Unix(), req.IntervalType)
+
+	val, ok := uc.cache.Get(time.Now(), key)
+	if !ok {
+		return resp, false
+	}
+
+	resp, ok = val.(GetReportRespDTO)
+	if !ok {
+		return resp, false
+	}
+
+	return resp, ok
+}
+
+func (uc *ExpenseUsecase) deleteReportFromCache(req AddExpenseReqDTO) {
+	if !uc.config.GetReportCacheEnable() {
+		return
+	}
+
+	uc.cache.Delete(time.Now(), fmt.Sprintf("%d_%d_%d",
+		req.UserID, utils.TruncDate(req.Date).Unix(), utils.DayInterval))
+
+	uc.cache.Delete(time.Now(), fmt.Sprintf("%d_%d_%d",
+		req.UserID, utils.TruncDate(req.Date).Unix(), utils.WeekInterval))
+
+	uc.cache.Delete(time.Now(), fmt.Sprintf("%d_%d_%d",
+		req.UserID, utils.TruncDate(req.Date).Unix(), utils.MonthInterval))
 }
