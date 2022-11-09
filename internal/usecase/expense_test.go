@@ -2,11 +2,11 @@ package usecase_test
 
 import (
 	"context"
-	"errors"
 	"testing"
 	"time"
 
 	"github.com/golang/mock/gomock"
+	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
 	"github.com/stretchr/testify/assert"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
@@ -31,6 +31,7 @@ func TestExpenseSetDefaultCurrency_CurrencyEqBaseCode(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	gomock.InOrder(
@@ -39,14 +40,15 @@ func TestExpenseSetDefaultCurrency_CurrencyEqBaseCode(t *testing.T) {
 		userStorage.EXPECT().UpdateDefaultCurrency(gomock.Any(), entity.UserID(201), "RUB").Return(nil),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	req := usecase.SetDefaultCurrencyReqDTO{
 		UserID:   201,
 		Currency: "RUB",
 	}
 
-	err := expenseUsecase.SetDefaultCurrency(ctx, req)
+	_, err := expenseUsecase.SetDefaultCurrency(ctx, req)
 	assert.NoError(t, err)
 }
 
@@ -60,6 +62,7 @@ func TestExpenseSetDefaultCurrency_CurrencyInCodes(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	gomock.InOrder(
@@ -69,14 +72,15 @@ func TestExpenseSetDefaultCurrency_CurrencyInCodes(t *testing.T) {
 		userStorage.EXPECT().UpdateDefaultCurrency(gomock.Any(), entity.UserID(201), "USD").Return(nil),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	req := usecase.SetDefaultCurrencyReqDTO{
 		UserID:   201,
 		Currency: "USD",
 	}
 
-	err := expenseUsecase.SetDefaultCurrency(ctx, req)
+	_, err := expenseUsecase.SetDefaultCurrency(ctx, req)
 	assert.NoError(t, err)
 }
 
@@ -90,6 +94,7 @@ func TestExpenseSetDefaultCurrency_UnknownCurrency(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	gomock.InOrder(
@@ -98,14 +103,15 @@ func TestExpenseSetDefaultCurrency_UnknownCurrency(t *testing.T) {
 		config.EXPECT().GetCurrencyCodes().Return([]string{"CNY", "EUR", "USD", "JPY"}),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	req := usecase.SetDefaultCurrencyReqDTO{
 		UserID:   201,
 		Currency: "KZT",
 	}
 
-	err := expenseUsecase.SetDefaultCurrency(ctx, req)
+	_, err := expenseUsecase.SetDefaultCurrency(ctx, req)
 	assert.Error(t, err)
 	assert.EqualError(t, err, "currency is unsupported")
 }
@@ -120,6 +126,7 @@ func TestExpenseSetDefaultCurrency_DBError(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	gomock.InOrder(
@@ -128,14 +135,15 @@ func TestExpenseSetDefaultCurrency_DBError(t *testing.T) {
 		userStorage.EXPECT().UpdateDefaultCurrency(gomock.Any(), entity.UserID(201), "RUB").Return(errUnknown),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	req := usecase.SetDefaultCurrencyReqDTO{
 		UserID:   201,
 		Currency: "RUB",
 	}
 
-	err := expenseUsecase.SetDefaultCurrency(ctx, req)
+	_, err := expenseUsecase.SetDefaultCurrency(ctx, req)
 	assert.Error(t, err)
 	assert.EqualError(t, err, "ExpenseUsecase.SetDefaultCurrency: unknown error")
 }
@@ -150,6 +158,7 @@ func TestUpdateCurrency(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	gomock.InOrder(
@@ -169,7 +178,8 @@ func TestUpdateCurrency(t *testing.T) {
 		).Return(nil),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	err := expenseUsecase.UpdateCurrency(ctx)
 	assert.NoError(t, err)
@@ -185,6 +195,7 @@ func TestUpdateCurrency_SrvError(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	gomock.InOrder(
@@ -194,7 +205,8 @@ func TestUpdateCurrency_SrvError(t *testing.T) {
 		ratesUpdaterService.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errUnknown),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	err := expenseUsecase.UpdateCurrency(ctx)
 	assert.Error(t, err)
@@ -213,6 +225,7 @@ func TestAddExpense(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	config.EXPECT().GetReportCacheEnable().Return(false).AnyTimes()
@@ -241,7 +254,8 @@ func TestAddExpense(t *testing.T) {
 			}, nil),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	req := usecase.AddExpenseReqDTO{
 		UserID:   202,
@@ -272,31 +286,33 @@ func TestGetReport(t *testing.T) {
 	userStorage := mock_usecase.NewMockIUserStorage(ctrl)
 	expenseStorage := mock_usecase.NewMockIExpenseStorage(ctrl)
 	ratesUpdaterService := mock_usecase.NewMockIRatesUpdaterService(ctrl)
+	reportClient := mock_usecase.NewMockGetReportClient(ctrl)
 	config := mock_usecase.NewMockIConfig(ctrl)
 
 	config.EXPECT().GetReportCacheEnable().Return(false).AnyTimes()
 
 	gomock.InOrder(
-		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
-		currencyStorage.EXPECT().Get(gomock.Any(), gomock.Any()).Return(entity.Rate{}, nil),
-		config.EXPECT().GetFrequencyRateUpdateSec().Return(60),
-		config.EXPECT().GetBaseCurrencyCode().Return("RUB"),
-		config.EXPECT().GetCurrencyCodes().Return([]string{"USD", "EUR", "JPY"}),
-		ratesUpdaterService.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, nil),
-
-		expenseStorage.EXPECT().Get(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
-			Return([]entity.Expense{
-				entity.NewExpense("AppStore", decimal.New(3125, -1), timeHelper(2022, 11, 1)),
-				entity.NewExpense("Spotify", decimal.New(125, 0), timeHelper(2022, 11, 1)),
-				entity.NewExpense("AppStore", decimal.New(625, -1), timeHelper(2022, 11, 2)),
-			}, nil),
-		userStorage.EXPECT().GetDefaultCurrency(gomock.Any(), gomock.Any()).
-			Return("EUR", nil),
-		currencyStorage.EXPECT().Get(gomock.Any(), "EUR").
-			Return(entity.NewRate("EUR", decimal.New(16, -3), time.Now()), nil),
+		reportClient.EXPECT().GetReport(gomock.Any(), usecase.GetReportReqDTO{
+			UserID:       202,
+			Date:         timeHelper(2022, 10, 1),
+			IntervalType: utils.WeekInterval,
+		}).Return(usecase.GetReportRespDTO{
+			Currency: "EUR",
+			Expenses: []usecase.ExpenseReportDTO{
+				{
+					Category: "AppStore",
+					Sum:      decimal.New(60000, -4),
+				},
+				{
+					Category: "Spotify",
+					Sum:      decimal.New(2000, -3),
+				},
+			},
+		}, nil),
 	)
 
-	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage, ratesUpdaterService, config)
+	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage,
+		expenseStorage, ratesUpdaterService, reportClient, config)
 
 	req := usecase.GetReportReqDTO{
 		UserID:       202,

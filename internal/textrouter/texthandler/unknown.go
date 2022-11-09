@@ -2,9 +2,8 @@ package texthandler
 
 import (
 	"context"
-	"time"
 
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 )
 
 type Unknown struct{}
@@ -14,17 +13,13 @@ func NewUnknown() *Unknown {
 }
 
 func (h *Unknown) Name() string {
-	return "unknown"
+	return usecase.UnknownCmdName
 }
 
-func (h *Unknown) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
+func (h *Unknown) ConvertTextToCommand(ctx context.Context, text string, cmd *usecase.Command) bool {
 	return true
 }
 
-func (h *Unknown) ExecuteCommand(ctx context.Context, cmd *textrouter.Command) error {
-	return nil
-}
-
-func (h *Unknown) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
+func (h *Unknown) ConvertCommandToText(ctx context.Context, cmd *usecase.Command) (string, error) {
 	return "Не могу понять. Введи /help для более подробной информации", nil
 }

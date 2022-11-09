@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/shopspring/decimal"
@@ -13,25 +12,17 @@ import (
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
-type ExpenseUsecaseSL interface {
-	SetLimit(ctx context.Context, req usecase.SetLimitReqDTO) (usecase.SetLimitRespDTO, error)
-}
+type SetLimit struct{}
 
-type SetLimit struct {
-	expenseUsecase ExpenseUsecaseSL
-}
-
-func NewSetLimit(expenseUsecase ExpenseUsecaseSL) *SetLimit {
-	return &SetLimit{
-		expenseUsecase: expenseUsecase,
-	}
+func NewSetLimit() *SetLimit {
+	return &SetLimit{}
 }
 
 func (h *SetLimit) Name() string {
-	return "setLimit"
+	return usecase.SetLimitCmdName
 }
 
-func (h *SetLimit) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
+func (h *SetLimit) ConvertTextToCommand(ctx context.Context, text string, cmd *usecase.Command) bool {
 	intervalIndex := 1
 	limitIndex := 2
 	argsCountMin := 3
@@ -53,7 +44,7 @@ func (h *SetLimit) ConvertTextToCommand(userID int64, text string, date time.Tim
 	}
 
 	cmd.SetLimitReqDTO = &usecase.SetLimitReqDTO{
-		UserID:       userID,
+		UserID:       cmd.UserID,
 		Limit:        limit,
 		IntervalType: intervalType,
 	}
@@ -61,22 +52,7 @@ func (h *SetLimit) ConvertTextToCommand(userID int64, text string, date time.Tim
 	return true
 }
 
-func (h *SetLimit) ExecuteCommand(ctx context.Context, cmd *textrouter.Command) error {
-	if cmd.SetLimitReqDTO == nil {
-		return errors.Wrap(textrouter.ErrInvalidCommand, "SetLimit.ExecuteCommand")
-	}
-
-	resp, err := h.expenseUsecase.SetLimit(ctx, *cmd.SetLimitReqDTO)
-	if err != nil {
-		return errors.Wrap(err, "SetLimit.ExecuteCommand")
-	}
-
-	cmd.SetLimitRespDTO = &resp
-
-	return nil
-}
-
-func (h *SetLimit) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
+func (h *SetLimit) ConvertCommandToText(ctx context.Context, cmd *usecase.Command) (string, error) {
 	if cmd.SetLimitReqDTO == nil || cmd.SetLimitRespDTO == nil {
 		return "", errors.Wrap(textrouter.ErrInvalidCommand, "SetLimit.ExecuteCommand")
 	}

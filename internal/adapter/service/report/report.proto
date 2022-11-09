@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+option go_package = "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot;reportservice";
+
+message Req {
+   int64 userID = 1;
+   string date = 2;
+   int32 interval = 3;
+}
+
+message Resp {
+   string currency = 1;
+   repeated Expense expenses = 2;
+}
+
+message Expense {
+   string category = 1;
+   string sum = 2;
+}
+
+service ReportService {
+   rpc GetReport (Req) returns (Resp);
+}

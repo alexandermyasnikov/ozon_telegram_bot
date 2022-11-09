@@ -3,7 +3,6 @@ package usecase
 import (
 	"context"
 	"fmt"
-	"sort"
 	"sync"
 	"time"
 
@@ -39,6 +38,10 @@ type IRatesUpdaterService interface {
 	Get(ctx context.Context, base string, codes []string) ([]entity.Rate, error)
 }
 
+type GetReportClient interface {
+	GetReport(ctx context.Context, req GetReportReqDTO) (GetReportRespDTO, error)
+}
+
 type IConfig interface {
 	GetBaseCurrencyCode() string
 	GetCurrencyCodes() []string
@@ -53,12 +56,13 @@ type ExpenseUsecase struct {
 	userStorage         IUserStorage
 	expenseStorage      IExpenseStorage
 	ratesUpdaterService IRatesUpdaterService
+	getReportClient     GetReportClient
 	config              IConfig
 	cache               *lrucache.LRUCache
 }
 
 func NewExpenseUsecase(currencyStorage ICurrencyStorage, userStorage IUserStorage, expenseStorage IExpenseStorage,
-	ratesUpdaterService IRatesUpdaterService, config IConfig,
+	ratesUpdaterService IRatesUpdaterService, getReportClient GetReportClient, config IConfig,
 ) *ExpenseUsecase {
 	var cache *lrucache.LRUCache
 	if config.GetReportCacheEnable() {
@@ -70,12 +74,14 @@ func NewExpenseUsecase(currencyStorage ICurrencyStorage, userStorage IUserStorag
 		userStorage:         userStorage,
 		expenseStorage:      expenseStorage,
 		ratesUpdaterService: ratesUpdaterService,
+		getReportClient:     getReportClient,
 		config:              config,
 		cache:               cache,
 	}
 }
 
-func (uc *ExpenseUsecase) SetDefaultCurrency(ctx context.Context, req SetDefaultCurrencyReqDTO) error {
+func (uc *ExpenseUsecase) SetDefaultCurrency(ctx context.Context, req SetDefaultCurrencyReqDTO,
+) (SetDefaultCurrencyRespDTO, error) {
 	ctx, span := otel.Tracer("ExpenseUsecase").Start(ctx, "SetDefaultCurrency")
 	defer span.End()
 
@@ -83,12 +89,12 @@ func (uc *ExpenseUsecase) SetDefaultCurrency(ctx context.Context, req SetDefault
 
 	ok := uc.isSupportedCurrencyCode(req.Currency)
 	if !ok {
-		return errors.New("currency is unsupported")
+		return SetDefaultCurrencyRespDTO{}, errors.New("currency is unsupported")
 	}
 
 	err := uc.userStorage.UpdateDefaultCurrency(ctx, userID, req.Currency)
 
-	return errors.Wrap(err, "ExpenseUsecase.SetDefaultCurrency")
+	return SetDefaultCurrencyRespDTO{}, errors.Wrap(err, "ExpenseUsecase.SetDefaultCurrency")
 }
 
 func (uc *ExpenseUsecase) SetLimit(ctx context.Context, req SetLimitReqDTO) (SetLimitRespDTO, error) {
@@ -251,79 +257,13 @@ func (uc *ExpenseUsecase) GetReport(ctx context.Context, req GetReportReqDTO) (G
 		return report, nil
 	}
 
-	userID := entity.UserID(req.UserID)
-
-	err := uc.tryUpdateRates(ctx, false)
-	if err != nil {
-		return GetReportRespDTO{}, errors.Wrap(err, "ExpenseUsecase.AddExpense")
-	}
-
-	dateStart, dateEnd := utils.GetInterval(req.Date, req.IntervalType)
-
-	expenses, err := uc.expenseStorage.Get(ctx, userID, dateStart, dateEnd)
-	if err != nil {
-		return GetReportRespDTO{}, errors.Wrap(err, "ExpenseUsecase.GetReport")
-	}
-
-	currency := uc.getCurrencyForUser(ctx, userID)
-
-	rate, err := uc.currencyStorage.Get(ctx, currency)
-	if err != nil {
-		return GetReportRespDTO{}, errors.Wrap(err, "ExpenseUsecase.GetReport")
-	}
-
-	uniq := make(map[string]int)
-	expensesReport := make([]ExpenseReportDTO, 0, len(expenses))
-
-	for _, expense := range expenses {
-		ind, ok := uniq[expense.GetCategory()]
-
-		price := expense.GetPrice().Mul(rate.GetRatio())
-
-		if ok {
-			expensesReport[ind].Sum = expensesReport[ind].Sum.Add(price)
-		} else {
-			uniq[expense.GetCategory()] = len(expensesReport)
-			expensesReport = append(expensesReport, ExpenseReportDTO{
-				Category: expense.GetCategory(),
-				Sum:      price,
-			})
-		}
-	}
-
-	sort.Slice(expensesReport, func(i, j int) bool {
-		return expensesReport[i].Category < expensesReport[j].Category
-	})
-
-	resp := GetReportRespDTO{
-		Currency: currency,
-		Expenses: expensesReport,
-	}
+	resp, err := uc.getReportClient.GetReport(ctx, req)
 
 	uc.addReportToCache(req, resp)
 
-	return resp, nil
+	return resp, errors.Wrap(err, "ExpenseUsecase.GetReport")
 }
 
-// ----
-
-// TODO PresentorUsecase ?
-func (uc *ExpenseUsecase) GetAllCurrencyNames(ctx context.Context) (GetAllCurrencyNamesRespDTO, error) {
-	currencyRates, err := uc.currencyStorage.GetAll(ctx)
-
-	names := make([]string, 0, len(currencyRates))
-	for _, currencyRate := range currencyRates {
-		names = append(names, currencyRate.GetCode())
-	}
-
-	resp := GetAllCurrencyNamesRespDTO{
-		Currencies: names,
-	}
-
-	return resp, errors.Wrap(err, "ExpenseUsecase.GetAllCurrencyNames")
-}
-
-// TODO WorkerUsecase ?
 func (uc *ExpenseUsecase) UpdateCurrency(ctx context.Context) error {
 	err := uc.tryUpdateRates(ctx, true)
 

@@ -3,9 +3,8 @@ package texthandler
 import (
 	"context"
 	"strings"
-	"time"
 
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 )
 
 type Help struct{}
@@ -15,18 +14,14 @@ func NewHelp() *Help {
 }
 
 func (h *Help) Name() string {
-	return "help"
+	return usecase.HelpCmdName
 }
 
-func (h *Help) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
+func (h *Help) ConvertTextToCommand(ctx context.Context, text string, cmd *usecase.Command) bool {
 	return strings.HasPrefix(text, "/help")
 }
 
-func (h *Help) ExecuteCommand(ctx context.Context, cmd *textrouter.Command) error {
-	return nil
-}
-
-func (h *Help) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
+func (h *Help) ConvertCommandToText(ctx context.Context, cmd *usecase.Command) (string, error) {
 	return `Я понимаю следующие команды:
 /start                               - приветственное сообщение
 /help                                - стравочная информация

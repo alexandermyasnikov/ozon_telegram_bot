@@ -25,11 +25,12 @@ generate: install-mockgen
 	${MOCKGEN} -source=internal/textrouter/texthandler/set_default_currency.go -destination=internal/textrouter/texthandler/mock_texthandler/set_default_currency.go
 	${MOCKGEN} -source=internal/textrouter/texthandler/add_expense.go -destination=internal/textrouter/texthandler/mock_texthandler/add_expense.go
 	${MOCKGEN} -source=internal/textrouter/texthandler/get_report.go -destination=internal/textrouter/texthandler/mock_texthandler/get_report.go
+	protoc --go_out=. --go_opt=paths=source_relative --go_opt=paths=source_relative --go-grpc_out=. --go-grpc_opt=paths=source_relative ./internal/adapter/service/report/report.proto
 
 lint: install-lint
 	${LINTBIN} run
 
-precommit: format build test lint
+precommit: generate format build test lint
 	echo "OK"
 
 bindir:

@@ -6,13 +6,37 @@ import (
 	"github.com/shopspring/decimal"
 )
 
-type GetAllCurrencyNamesRespDTO struct {
-	Currencies []string
+type MessageInfo struct {
+	UserID int64     `json:"user_id,omitempty"`
+	Date   time.Time `json:"date,omitempty"`
+}
+
+type Command struct {
+	MessageInfo
+	Name                      string                     `json:"name"`
+	SetDefaultCurrencyReqDTO  *SetDefaultCurrencyReqDTO  `json:"set_default_currency_req_dto,omitempty"`
+	SetDefaultCurrencyRespDTO *SetDefaultCurrencyRespDTO `json:"set_default_currency_resp_dto,omitempty"`
+	AddExpenseReqDTO          *AddExpenseReqDTO          `json:"add_expense_req_dto,omitempty"`
+	AddExpenseRespDTO         *AddExpenseRespDTO         `json:"add_expense_resp_dto,omitempty"`
+	GetReportReqDTO           *GetReportReqDTO           `json:"get_report_req_dto,omitempty"`
+	GetReportRespDTO          *GetReportRespDTO          `json:"get_report_resp_dto,omitempty"`
+	SetLimitReqDTO            *SetLimitReqDTO            `json:"set_limit_req_dto,omitempty"`
+	SetLimitRespDTO           *SetLimitRespDTO           `json:"set_limit_resp_dto,omitempty"`
+	GetLimitsReqDTO           *GetLimitsReqDTO           `json:"get_limits_req_dto,omitempty"`
+	GetLimitsRespDTO          *GetLimitsRespDTO          `json:"get_limits_resp_dto,omitempty"`
+}
+
+type CommandAddExpense struct {
+	Req  AddExpenseReqDTO
+	Resp AddExpenseRespDTO
 }
 
 type SetDefaultCurrencyReqDTO struct {
 	UserID   int64
 	Currency string
+}
+
+type SetDefaultCurrencyRespDTO struct {
 }
 
 type AddExpenseReqDTO struct {

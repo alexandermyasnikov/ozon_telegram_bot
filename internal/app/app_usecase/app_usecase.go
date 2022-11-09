@@ -1,7 +1,8 @@
-package app
+package appusecase
 
 import (
 	"context"
+	"encoding/json"
 	"net/http"
 	"sync"
 	"time"
@@ -9,20 +10,21 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	kafkareader "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/kafka/kafka_reader"
+	kafkawriter "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/kafka/kafka_writer"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterservicecbr"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/ratesupdaterserviceexchangerate"
+	reportservice "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/service/report"
 	currencycachestorage "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currency_cache_storage" //nolint:lll
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/currencypgsqlstorage"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/expensepgsqlstorage"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/adapter/storage/userpgsqlstorage"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/clients/tg"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/config"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
-	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter/texthandler"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 	rateupdaterworker "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/worker/rate_updater_worker"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/logger"
+	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/metrics"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/jaeger"
 	"go.opentelemetry.io/otel/propagation"
@@ -30,10 +32,6 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 )
-
-type client interface {
-	Run(context.Context)
-}
 
 type worker interface {
 	Run(context.Context)
@@ -43,18 +41,17 @@ type IRatesUpdaterService interface {
 	Get(ctx context.Context, base string, codes []string) ([]entity.Rate, error)
 }
 
-var _ client = &tg.Client{}
-
-type App struct {
-	client        client
-	worker        worker
-	conn          *pgx.Conn
-	router        *textrouter.RouterText
-	tp            *sdktrace.TracerProvider
-	metricsServer *http.Server
+type AppUsecase struct {
+	worker         worker
+	conn           *pgx.Conn
+	tp             *sdktrace.TracerProvider
+	metricsServer  *http.Server
+	reader         *kafkareader.KafkaReader
+	readerCallback kafkareader.MsgCallback
+	reportClient   *reportservice.ReportClient
 }
 
-func New(ctx context.Context, cfg *config.Config) (App, error) {
+func New(ctx context.Context, cfg *config.Config) (AppUsecase, error) {
 	tp, err := registerJaeger(cfg.GetJaegerURL())
 	if err != nil {
 		logger.Fatalf("jaeger client init failed: %v", err)
@@ -66,7 +63,6 @@ func New(ctx context.Context, cfg *config.Config) (App, error) {
 	}
 
 	currencyStorage := currencycachestorage.New(currencypgsqlstorage.New(conn), cfg)
-
 	userStorage := userpgsqlstorage.New(conn)
 	expenseStorage := expensepgsqlstorage.New(conn)
 
@@ -78,50 +74,75 @@ func New(ctx context.Context, cfg *config.Config) (App, error) {
 		ratesUpdaterService = ratesupdaterserviceexchangerate.New()
 	}
 
+	reportClient := reportservice.NewReportClient(cfg.GetReportServiceAddr())
+
 	expenseUsecase := usecase.NewExpenseUsecase(currencyStorage, userStorage, expenseStorage,
-		ratesUpdaterService, cfg)
-
-	routerText := textrouter.New()
-
-	routerText.Register(texthandler.NewStart())
-	routerText.Register(texthandler.NewHelp())
-	routerText.Register(texthandler.NewAbout())
-	routerText.Register(texthandler.NewSetDefaultCurrency(expenseUsecase))
-	routerText.Register(texthandler.NewAddExpense(expenseUsecase))
-	routerText.Register(texthandler.NewGetReport(expenseUsecase))
-	routerText.Register(texthandler.NewSetLimit(expenseUsecase))
-	routerText.Register(texthandler.NewGetLimits(expenseUsecase))
-	routerText.Register(texthandler.NewUnknown())
+		ratesUpdaterService, reportClient, cfg)
 
 	rateUpdaterWorker := rateupdaterworker.New(expenseUsecase, cfg)
-
-	var tgClient *tg.Client
-
-	if cfg.TelegramEnable() {
-		tgClient, err = tg.New(cfg, routerText)
-		if err != nil {
-			logger.Fatalf("tg client init failed: %v", err)
-		}
-	}
 
 	http.Handle("/metrics", promhttp.Handler())
 
 	metricsServer := &http.Server{ //nolint:exhaustruct
-		Addr:              ":8080",
+		Addr:              cfg.GetPrometheusAddr(),
 		ReadHeaderTimeout: 1 * time.Second,
 	}
 
-	return App{
-		client:        tgClient,
-		worker:        rateUpdaterWorker,
-		conn:          conn,
-		router:        routerText,
-		tp:            tp,
-		metricsServer: metricsServer,
+	facadeUsecase := usecase.New(expenseUsecase)
+
+	reader := kafkareader.New(cfg.GetKafkaAddr(), usecase.ReadCmdState, "usecaseReader")
+
+	writer := kafkawriter.New(cfg.GetKafkaAddr(), usecase.ProcessCmdState)
+
+	middlewareMetricsUsecase := func(ctx context.Context, cmd *usecase.Command) error {
+		startTime := time.Now()
+
+		err = facadeUsecase.ExecuteCommand(ctx, cmd)
+
+		duration := time.Since(startTime)
+
+		metrics.SummaryExecuteTimeObserve(cmd.Name, duration.Seconds())
+		metrics.CounterMsgInc(cmd.Name)
+
+		return errors.Wrap(err, "middlewareMetricsUsecase")
+	}
+
+	readerCallback := func(ctx context.Context, key, value []byte) {
+		var cmd usecase.Command
+
+		err := json.Unmarshal(value, &cmd)
+		if err != nil {
+			logger.Errorf("can not unmarshal command: %v", err)
+		}
+
+		err = middlewareMetricsUsecase(ctx, &cmd)
+		if err != nil {
+			logger.Errorf("can not execute command: %v", err)
+		}
+
+		buf, err := json.Marshal(cmd)
+		if err != nil {
+			logger.Errorf("can not marshal command: %v", err)
+		}
+
+		err = writer.Write(ctx, []byte(cmd.Name), buf)
+		if err != nil {
+			logger.Errorf("can not write message: %v", err)
+		}
+	}
+
+	return AppUsecase{
+		worker:         rateUpdaterWorker,
+		conn:           conn,
+		tp:             tp,
+		metricsServer:  metricsServer,
+		reader:         reader,
+		readerCallback: readerCallback,
+		reportClient:   reportClient,
 	}, nil
 }
 
-func (a *App) Run(ctx context.Context) {
+func (a *AppUsecase) Run(ctx context.Context) {
 	var wg sync.WaitGroup
 
 	go func() {
@@ -130,14 +151,12 @@ func (a *App) Run(ctx context.Context) {
 		}
 	}()
 
-	if p, ok := a.client.(*tg.Client); ok && p != nil {
-		wg.Add(1)
+	wg.Add(1)
 
-		go func() {
-			defer wg.Done()
-			a.client.Run(ctx)
-		}()
-	}
+	go func() {
+		defer wg.Done()
+		a.reader.Read(ctx, a.readerCallback)
+	}()
 
 	wg.Add(1)
 
@@ -163,10 +182,8 @@ func (a *App) Run(ctx context.Context) {
 	if err := a.metricsServer.Shutdown(ctx); err != nil {
 		logger.Errorf("can not shutdown metricsServer: %v", err)
 	}
-}
 
-func (a *App) GetRouterForTest() *textrouter.RouterText {
-	return a.router
+	a.reportClient.Close()
 }
 
 func registerJaeger(url string) (*sdktrace.TracerProvider, error) {

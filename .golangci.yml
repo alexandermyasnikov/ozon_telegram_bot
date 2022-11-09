@@ -1,3 +1,5 @@
+run:
+  timeout: 5m
 issues:
 #  new-from-rev: origin/master
 linters:
@@ -18,6 +20,7 @@ linters:
     - cyclop # сложность функций
     - gofumpt # TODO непонятная ошибка
     - ireturn # возврат интерфейсов
+    - tagliatelle # именование json атрибутов
   enable-all: true
 linters-settings:
   exhaustruct:

@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
@@ -12,53 +11,30 @@ import (
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
-type ExpenseUsecaseGL interface {
-	GetLimits(ctx context.Context, req usecase.GetLimitsReqDTO) (usecase.GetLimitsRespDTO, error)
-}
+type GetLimits struct{}
 
-type GetLimits struct {
-	expenseUsecase ExpenseUsecaseGL
-}
-
-func NewGetLimits(expenseUsecase ExpenseUsecaseGL) *GetLimits {
-	return &GetLimits{
-		expenseUsecase: expenseUsecase,
-	}
+func NewGetLimits() *GetLimits {
+	return &GetLimits{}
 }
 
 func (h *GetLimits) Name() string {
-	return "getLimits"
+	return usecase.GetLimitsCmdName
 }
 
-func (h *GetLimits) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
+func (h *GetLimits) ConvertTextToCommand(ctx context.Context, text string, cmd *usecase.Command) bool {
 	fields := strings.Fields(text)
 	if len(fields) != 1 || fields[0] != "лимиты" {
 		return false
 	}
 
 	cmd.GetLimitsReqDTO = &usecase.GetLimitsReqDTO{
-		UserID: userID,
+		UserID: cmd.UserID,
 	}
 
 	return true
 }
 
-func (h *GetLimits) ExecuteCommand(ctx context.Context, cmd *textrouter.Command) error {
-	if cmd.GetLimitsReqDTO == nil {
-		return errors.Wrap(textrouter.ErrInvalidCommand, "GetLimits.ExecuteCommand")
-	}
-
-	resp, err := h.expenseUsecase.GetLimits(ctx, *cmd.GetLimitsReqDTO)
-	if err != nil {
-		return errors.Wrap(err, "GetLimits.ExecuteCommand")
-	}
-
-	cmd.GetLimitsRespDTO = &resp
-
-	return nil
-}
-
-func (h *GetLimits) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
+func (h *GetLimits) ConvertCommandToText(ctx context.Context, cmd *usecase.Command) (string, error) {
 	if cmd.GetLimitsReqDTO == nil || cmd.GetLimitsRespDTO == nil {
 		return "", errors.Wrap(textrouter.ErrInvalidCommand, "GetLimits.ExecuteCommand")
 	}

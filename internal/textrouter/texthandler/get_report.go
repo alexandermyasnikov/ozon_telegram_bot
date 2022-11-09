@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
@@ -13,25 +12,17 @@ import (
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
-type ExpenseUsecaseGR interface {
-	GetReport(ctx context.Context, req usecase.GetReportReqDTO) (usecase.GetReportRespDTO, error)
-}
+type GetReport struct{}
 
-type GetReport struct {
-	expenseUsecase ExpenseUsecaseGR
-}
-
-func NewGetReport(expenseUsecase ExpenseUsecaseGR) *GetReport {
-	return &GetReport{
-		expenseUsecase: expenseUsecase,
-	}
+func NewGetReport() *GetReport {
+	return &GetReport{}
 }
 
 func (h *GetReport) Name() string {
-	return "getReport"
+	return usecase.GetReportCmdName
 }
 
-func (h *GetReport) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
+func (h *GetReport) ConvertTextToCommand(ctx context.Context, text string, cmd *usecase.Command) bool {
 	intervalIndex := 1
 	argsCountMin := 2
 	argsCountMax := 2
@@ -54,30 +45,15 @@ func (h *GetReport) ConvertTextToCommand(userID int64, text string, date time.Ti
 	}
 
 	cmd.GetReportReqDTO = &usecase.GetReportReqDTO{
-		UserID:       userID,
-		Date:         date,
+		UserID:       cmd.UserID,
+		Date:         cmd.Date,
 		IntervalType: intervalType,
 	}
 
 	return true
 }
 
-func (h *GetReport) ExecuteCommand(ctx context.Context, cmd *textrouter.Command) error {
-	if cmd.GetReportReqDTO == nil {
-		return errors.Wrap(textrouter.ErrInvalidCommand, "GetReport.ExecuteCommand")
-	}
-
-	resp, err := h.expenseUsecase.GetReport(ctx, *cmd.GetReportReqDTO)
-	if err != nil {
-		return errors.Wrap(err, "GetReport.ExecuteCommand")
-	}
-
-	cmd.GetReportRespDTO = &resp
-
-	return nil
-}
-
-func (h *GetReport) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
+func (h *GetReport) ConvertCommandToText(ctx context.Context, cmd *usecase.Command) (string, error) {
 	if cmd.GetReportReqDTO == nil || cmd.GetReportRespDTO == nil {
 		return "", errors.Wrap(textrouter.ErrInvalidCommand, "GetReport.ExecuteCommand")
 	}

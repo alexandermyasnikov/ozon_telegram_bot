@@ -12,6 +12,7 @@ import (
 	gomock "github.com/golang/mock/gomock"
 	decimal "github.com/shopspring/decimal"
 	entity "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/entity"
+	usecase "gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 )
 
 // MockICurrencyStorage is a mock of ICurrencyStorage interface.
@@ -280,6 +281,44 @@ func (m *MockIRatesUpdaterService) Get(ctx context.Context, base string, codes [
 func (mr *MockIRatesUpdaterServiceMockRecorder) Get(ctx, base, codes interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockIRatesUpdaterService)(nil).Get), ctx, base, codes)
+}
+
+// MockGetReportClient is a mock of GetReportClient interface.
+type MockGetReportClient struct {
+	ctrl     *gomock.Controller
+	recorder *MockGetReportClientMockRecorder
+}
+
+// MockGetReportClientMockRecorder is the mock recorder for MockGetReportClient.
+type MockGetReportClientMockRecorder struct {
+	mock *MockGetReportClient
+}
+
+// NewMockGetReportClient creates a new mock instance.
+func NewMockGetReportClient(ctrl *gomock.Controller) *MockGetReportClient {
+	mock := &MockGetReportClient{ctrl: ctrl}
+	mock.recorder = &MockGetReportClientMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockGetReportClient) EXPECT() *MockGetReportClientMockRecorder {
+	return m.recorder
+}
+
+// GetReport mocks base method.
+func (m *MockGetReportClient) GetReport(ctx context.Context, req usecase.GetReportReqDTO) (usecase.GetReportRespDTO, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetReport", ctx, req)
+	ret0, _ := ret[0].(usecase.GetReportRespDTO)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetReport indicates an expected call of GetReport.
+func (mr *MockGetReportClientMockRecorder) GetReport(ctx, req interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetReport", reflect.TypeOf((*MockGetReportClient)(nil).GetReport), ctx, req)
 }
 
 // MockIConfig is a mock of IConfig interface.

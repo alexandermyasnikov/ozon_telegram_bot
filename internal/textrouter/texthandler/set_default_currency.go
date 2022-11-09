@@ -4,33 +4,23 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/pkg/errors"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/textrouter"
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/usecase"
 )
 
-type IExpenseUsecaseSDC interface {
-	SetDefaultCurrency(context.Context, usecase.SetDefaultCurrencyReqDTO) error
-}
+type SetDefaultCurrency struct{}
 
-type SetDefaultCurrency struct {
-	expenseUsecase IExpenseUsecaseSDC
-}
-
-func NewSetDefaultCurrency(expenseUsecase IExpenseUsecaseSDC) *SetDefaultCurrency {
-	return &SetDefaultCurrency{
-		expenseUsecase: expenseUsecase,
-	}
+func NewSetDefaultCurrency() *SetDefaultCurrency {
+	return &SetDefaultCurrency{}
 }
 
 func (h *SetDefaultCurrency) Name() string {
-	return "setDefaultCurrency"
+	return usecase.SetCurrencyCmdName
 }
 
-func (h *SetDefaultCurrency) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command,
-) bool {
+func (h *SetDefaultCurrency) ConvertTextToCommand(ctx context.Context, text string, cmd *usecase.Command) bool {
 	currencyIndex := 1
 	argsCount := 2
 
@@ -42,24 +32,14 @@ func (h *SetDefaultCurrency) ConvertTextToCommand(userID int64, text string, dat
 	currency := fields[currencyIndex]
 
 	cmd.SetDefaultCurrencyReqDTO = &usecase.SetDefaultCurrencyReqDTO{
-		UserID:   userID,
+		UserID:   cmd.UserID,
 		Currency: currency,
 	}
 
 	return true
 }
 
-func (h *SetDefaultCurrency) ExecuteCommand(ctx context.Context, cmd *textrouter.Command) error {
-	if cmd.SetDefaultCurrencyReqDTO == nil {
-		return errors.Wrap(textrouter.ErrInvalidCommand, "SetDefaultCurrency.ExecuteCommand")
-	}
-
-	err := h.expenseUsecase.SetDefaultCurrency(ctx, *cmd.SetDefaultCurrencyReqDTO)
-
-	return errors.Wrap(err, "SetDefaultCurrency.ExecuteCommand")
-}
-
-func (h *SetDefaultCurrency) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
+func (h *SetDefaultCurrency) ConvertCommandToText(ctx context.Context, cmd *usecase.Command) (string, error) {
 	if cmd.SetDefaultCurrencyReqDTO == nil {
 		return "", errors.Wrap(textrouter.ErrInvalidCommand, "SetDefaultCurrency.ExecuteCommand")
 	}

@@ -13,25 +13,17 @@ import (
 	"gitlab.ozon.dev/myasnikov.alexander.s/telegram-bot/internal/utils"
 )
 
-type ExpenseUsecaseAE interface {
-	AddExpense(ctx context.Context, req usecase.AddExpenseReqDTO) (usecase.AddExpenseRespDTO, error)
-}
+type AddExpense struct{}
 
-type AddExpense struct {
-	expenseUsecase ExpenseUsecaseAE
-}
-
-func NewAddExpense(expenseUsecase ExpenseUsecaseAE) *AddExpense {
-	return &AddExpense{
-		expenseUsecase: expenseUsecase,
-	}
+func NewAddExpense() *AddExpense {
+	return &AddExpense{}
 }
 
 func (h *AddExpense) Name() string {
-	return "addExpense"
+	return usecase.AddExpenseCmdName
 }
 
-func (h *AddExpense) ConvertTextToCommand(userID int64, text string, date time.Time, cmd *textrouter.Command) bool {
+func (h *AddExpense) ConvertTextToCommand(ctx context.Context, text string, cmd *usecase.Command) bool {
 	categoryIndex := 1
 	priceIndex := 2
 	argsCountMin := 3
@@ -50,31 +42,16 @@ func (h *AddExpense) ConvertTextToCommand(userID int64, text string, date time.T
 	}
 
 	cmd.AddExpenseReqDTO = &usecase.AddExpenseReqDTO{
-		UserID:   userID,
+		UserID:   cmd.UserID,
 		Category: category,
 		Price:    price,
-		Date:     date,
+		Date:     cmd.Date,
 	}
 
 	return true
 }
 
-func (h *AddExpense) ExecuteCommand(ctx context.Context, cmd *textrouter.Command) error {
-	if cmd.AddExpenseReqDTO == nil {
-		return errors.Wrap(textrouter.ErrInvalidCommand, "AddExpense.ExecuteCommand")
-	}
-
-	resp, err := h.expenseUsecase.AddExpense(ctx, *cmd.AddExpenseReqDTO)
-	if err != nil {
-		return errors.Wrap(err, "AddExpense.ExecuteCommand")
-	}
-
-	cmd.AddExpenseRespDTO = &resp
-
-	return nil
-}
-
-func (h *AddExpense) ConvertCommandToText(cmd *textrouter.Command) (string, error) {
+func (h *AddExpense) ConvertCommandToText(ctx context.Context, cmd *usecase.Command) (string, error) {
 	if cmd.AddExpenseReqDTO == nil || cmd.AddExpenseRespDTO == nil {
 		return "", errors.Wrap(textrouter.ErrInvalidCommand, "AddExpense.ExecuteCommand")
 	}

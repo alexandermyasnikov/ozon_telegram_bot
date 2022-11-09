@@ -10,13 +10,16 @@ import (
 const ConfigFile = "./data/config.yaml"
 
 type Config struct {
-	Logger        LoggerConfig   `yaml:"logger"`
-	Telegram      TelegramConfig `yaml:"telegram"`
-	Rates         RatesConfig    `yaml:"rates"`
-	Database      DatabaseConfig `yaml:"database"`
-	Jaeger        JaegerConfig   `yaml:"jaeger"`
-	CurrencyCache CacheConfig    `yaml:"currencyCache"`
-	ReportCache   CacheConfig    `yaml:"reportCache"`
+	Logger        LoggerConfig        `yaml:"logger"`
+	Telegram      TelegramConfig      `yaml:"telegram"`
+	Rates         RatesConfig         `yaml:"rates"`
+	Database      DatabaseConfig      `yaml:"database"`
+	Jaeger        JaegerConfig        `yaml:"jaeger"`
+	CurrencyCache CacheConfig         `yaml:"currencyCache"`
+	ReportCache   CacheConfig         `yaml:"reportCache"`
+	Kafka         KafkaConfig         `yaml:"kafka"`
+	Prometheus    PrometheusConfig    `yaml:"prometheus"`
+	ReportService ReportServiceConfig `yaml:"reportService"`
 }
 
 type LoggerConfig struct {
@@ -24,8 +27,7 @@ type LoggerConfig struct {
 }
 
 type TelegramConfig struct {
-	Enable bool   `yaml:"enable"`
-	Token  string `yaml:"token"`
+	Token string `yaml:"token"`
 }
 
 type RatesConfig struct {
@@ -49,6 +51,18 @@ type CacheConfig struct {
 	TTL    int  `yaml:"ttl"`
 }
 
+type KafkaConfig struct {
+	Addr string `yaml:"addr"`
+}
+
+type PrometheusConfig struct {
+	Addr string `yaml:"addr"`
+}
+
+type ReportServiceConfig struct {
+	Addr string `yaml:"addr"`
+}
+
 func New(file string) (*Config, error) {
 	var cfg Config
 
@@ -67,10 +81,6 @@ func New(file string) (*Config, error) {
 
 func (c Config) GetLoggerDevel() bool {
 	return c.Logger.Devel
-}
-
-func (c Config) TelegramEnable() bool {
-	return c.Telegram.Enable
 }
 
 func (c Config) TelegramToken() string {
@@ -123,4 +133,16 @@ func (c Config) GetReportCacheSize() int {
 
 func (c Config) GetReportCacheTTL() int {
 	return c.ReportCache.TTL
+}
+
+func (c Config) GetKafkaAddr() string {
+	return c.Kafka.Addr
+}
+
+func (c Config) GetPrometheusAddr() string {
+	return c.Prometheus.Addr
+}
+
+func (c Config) GetReportServiceAddr() string {
+	return c.ReportService.Addr
 }
